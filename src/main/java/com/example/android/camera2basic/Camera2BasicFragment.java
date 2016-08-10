@@ -41,7 +41,6 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
-import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
 import android.os.Handler;
@@ -59,12 +58,7 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -80,7 +74,7 @@ public class Camera2BasicFragment extends Fragment
      * Conversion from screen rotation to JPEG orientation.
      */
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
-    private static final int REQUEST_CAMERA_PERMISSION = 1;
+    private static final int REQUEST_APP_PERMISSION = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
 
     static {
@@ -226,11 +220,13 @@ public class Camera2BasicFragment extends Fragment
      * An additional thread for running tasks that shouldn't block the UI.
      */
     private HandlerThread mBackgroundThread;
+    private HandlerThread mBackgroundCaptureThread;
 
     /**
      * A {@link Handler} for running tasks in the background.
      */
     private Handler mBackgroundHandler;
+    private Handler mBackgroundCaptureHandler;
 
     /**
      * An {@link ImageReader} that handles still image capture.
@@ -256,7 +252,7 @@ public class Camera2BasicFragment extends Fragment
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            new EmotionApiCallAsyncTask(mTextView).execute(reader.acquireLatestImage());
+            new EmotionApiCallAsyncTask(mTextView).execute(reader.acquireNextImage());
         }
 
     };
@@ -483,26 +479,28 @@ public class Camera2BasicFragment extends Fragment
 
     @Override
     public void onPause() {
+        mUIHandler.removeCallbacks(takePictureTask);
         closeCamera();
         stopBackgroundThread();
-        mUIHandler.removeCallbacks(takePictureTask);
         super.onPause();
     }
 
     private void requestCameraPermission() {
-        if (FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
+        if (FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA) ||
+                FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.INTERNET)) {
             new ConfirmationDialog().show(getChildFragmentManager(), FRAGMENT_DIALOG);
         } else {
-            FragmentCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA},
-                    REQUEST_CAMERA_PERMISSION);
+            FragmentCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA, Manifest.permission.INTERNET},
+                    REQUEST_APP_PERMISSION);
         }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_CAMERA_PERMISSION) {
-            if (grantResults.length != 1 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+        if (requestCode == REQUEST_APP_PERMISSION) {
+            if (grantResults.length != 2 || grantResults[0] != PackageManager.PERMISSION_GRANTED
+                    || grantResults[1] != PackageManager.PERMISSION_GRANTED) {
                 ErrorDialog.newInstance(getString(R.string.request_permission))
                         .show(getChildFragmentManager(), FRAGMENT_DIALOG);
             }
@@ -548,7 +546,7 @@ public class Camera2BasicFragment extends Fragment
                         Arrays.asList(sizes), new CompareSizesByArea());
                 Collections.sort(Arrays.asList(sizes), new CompareSizesByArea());
                 Log.i(TAG, "Sizes of JPEG: " + Integer.toString(sizes.length));
-                Size smallest = (sizes.length > 1)? sizes[1]: Collections.min(Arrays.asList(sizes), new CompareSizesByArea()); // bigger than the smallest
+                Size smallest = /*(sizes.length > 1)? sizes[1]:*/ Collections.min(Arrays.asList(sizes), new CompareSizesByArea()); // bigger than the smallest
                 mImageReader = ImageReader.newInstance(smallest.getWidth(), smallest.getHeight(),
                         ImageFormat.JPEG, /*maxImages*/2);
                 mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, mUIHandler);
@@ -696,6 +694,9 @@ public class Camera2BasicFragment extends Fragment
         mBackgroundThread = new HandlerThread("CameraBackground");
         mBackgroundThread.start();
         mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
+        mBackgroundCaptureThread = new HandlerThread("CameraCaptureBackground");
+        mBackgroundCaptureThread.start();
+        mBackgroundCaptureHandler = new Handler(mBackgroundCaptureThread.getLooper());
     }
 
     /**
@@ -703,10 +704,14 @@ public class Camera2BasicFragment extends Fragment
      */
     private void stopBackgroundThread() {
         mBackgroundThread.quitSafely();
+        mBackgroundCaptureThread.quitSafely();
         try {
             mBackgroundThread.join();
             mBackgroundThread = null;
             mBackgroundHandler = null;
+            mBackgroundCaptureThread.join();
+            mBackgroundCaptureThread = null;
+            mBackgroundCaptureHandler = null;
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -810,8 +815,8 @@ public class Camera2BasicFragment extends Fragment
      * Initiate a still image capture.
      */
     private void takePicture() {
-        mUIHandler.postDelayed(takePictureTask, 500);
         lockFocus();
+        mUIHandler.postDelayed(takePictureTask, 1000); // take picture ramdomly in a few sec
     }
 
     /**
@@ -826,7 +831,7 @@ public class Camera2BasicFragment extends Fragment
             // Tell #mCaptureCallback to wait for the lock.
             mState = STATE_WAITING_LOCK;
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundHandler);
+                    mBackgroundCaptureHandler);
             Log.i(TAG, "capture called");
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -845,7 +850,7 @@ public class Camera2BasicFragment extends Fragment
             // Tell #mCaptureCallback to wait for the precapture sequence to be set.
             mState = STATE_WAITING_PRECAPTURE;
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundHandler);
+                    mBackgroundCaptureHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -922,7 +927,7 @@ public class Camera2BasicFragment extends Fragment
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
             setAutoFlash(mPreviewRequestBuilder);
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundHandler);
+                    mBackgroundCaptureHandler);
             // After this, the camera will go back to the normal state of preview.
             mState = STATE_PREVIEW;
             mCaptureSession.setRepeatingRequest(mPreviewRequest, mCaptureCallback,
@@ -1063,8 +1068,8 @@ public class Camera2BasicFragment extends Fragment
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
                             FragmentCompat.requestPermissions(parent,
-                                    new String[]{Manifest.permission.CAMERA},
-                                    REQUEST_CAMERA_PERMISSION);
+                                    new String[]{Manifest.permission.CAMERA, Manifest.permission.INTERNET},
+                                    REQUEST_APP_PERMISSION);
                         }
                     })
                     .setNegativeButton(android.R.string.cancel,

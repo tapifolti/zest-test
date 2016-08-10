@@ -16,7 +16,7 @@
 <resources>
     <string name="picture">Picture</string>
     <string name="description_info">Info</string>
-    <string name="request_permission">This sample needs camera permission.</string>
+    <string name="request_permission">This application needs camera and network permission (to evaluate emotion).</string>
     <string name="camera_error">This device doesn\'t support Camera2 API.</string>
     <string name="emoString">SMILE</string>
 </resources>
