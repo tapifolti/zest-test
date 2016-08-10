@@ -41,6 +41,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
 import android.os.Handler;
@@ -252,7 +253,11 @@ public class Camera2BasicFragment extends Fragment
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            new EmotionApiCallAsyncTask(mTextView).execute(reader.acquireNextImage());
+            Log.i(TAG, "onImageAvailable(...) called");
+            Image image = reader.acquireNextImage();
+            Log.i(TAG, "onImageAvailable(...) image acquired");
+            new EmotionApiCallAsyncTask(mTextView).execute(image);
+            Log.i(TAG, "onImageAvailable(...) execute called");
         }
 
     };
@@ -306,18 +311,18 @@ public class Camera2BasicFragment extends Fragment
                     Integer afState = result.get(CaptureResult.CONTROL_AF_STATE);
                     Log.i(TAG, "STATE_WAITING_LOCK afState:" + Integer.toString(afState));
                     if (afState == null || afState == 0) { // Tzs  added || afState == 0
+                        Log.i(TAG, "mCaptureCallback process(...) (afState == null || afState == 0) captureStillPicture()");
                         mState = STATE_PICTURE_TAKEN; // TZs missing was added
                         captureStillPicture();
-                        Log.i(TAG, "mCaptureCallback process(...) (afState == null || afState == 0) captureStillPicture()");
                     } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState ||
                             CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == afState) {
                         // CONTROL_AE_STATE can be null on some devices
                         Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
                         if (aeState == null ||
                                 aeState == CaptureResult.CONTROL_AE_STATE_CONVERGED) {
+                            Log.i(TAG, "mCaptureCallback process(...) (afState != null) captureStillPicture()");
                             mState = STATE_PICTURE_TAKEN;
                             captureStillPicture();
-                            Log.i(TAG, "mCaptureCallback process(...) (afState != null) captureStillPicture()");
                         } else {
                             runPrecaptureSequence();
                         }
@@ -327,10 +332,12 @@ public class Camera2BasicFragment extends Fragment
                 case STATE_WAITING_PRECAPTURE: {
                     // CONTROL_AE_STATE can be null on some devices
                     Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
+                    Log.i(TAG, "mCaptureCallback process(...) STATE_WAITING_PRECAPTURE");
                     if (aeState == null ||
                             aeState == CaptureResult.CONTROL_AE_STATE_PRECAPTURE ||
                             aeState == CaptureRequest.CONTROL_AE_STATE_FLASH_REQUIRED) {
                         mState = STATE_WAITING_NON_PRECAPTURE;
+                        Log.i(TAG, "mCaptureCallback process(...) STATE_WAITING_NON_PRECAPTURE was set");
                     }
                     break;
                 }
@@ -338,9 +345,9 @@ public class Camera2BasicFragment extends Fragment
                     // CONTROL_AE_STATE can be null on some devices
                     Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
                     if (aeState == null || aeState != CaptureResult.CONTROL_AE_STATE_PRECAPTURE) {
+                        Log.i(TAG, "mCaptureCallback process(...) STATE_WAITING_NON_PRECAPTURE captureStillPicture()");
                         mState = STATE_PICTURE_TAKEN;
                         captureStillPicture();
-                        Log.i(TAG, "mCaptureCallback process(...) STATE_WAITING_NON_PRECAPTURE captureStillPicture()");
                     }
                     break;
                 }
@@ -351,6 +358,7 @@ public class Camera2BasicFragment extends Fragment
         public void onCaptureProgressed(@NonNull CameraCaptureSession session,
                                         @NonNull CaptureRequest request,
                                         @NonNull CaptureResult partialResult) {
+            Log.i(TAG, "onCaptureProgressed(...) mState:" + Integer.toString(mState));
             process(partialResult);
         }
 
@@ -358,6 +366,7 @@ public class Camera2BasicFragment extends Fragment
         public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                        @NonNull CaptureRequest request,
                                        @NonNull TotalCaptureResult result) {
+            Log.i(TAG, "onCaptureCompleted(...) mState:" + Integer.toString(mState));
             process(result);
         }
 
@@ -541,14 +550,14 @@ public class Camera2BasicFragment extends Fragment
                 Log.i(TAG, "Scaler Stream Configuration Map got");
 
                 // For still image captures, we use the smallest available size.
-                Size[] sizes = map.getOutputSizes(ImageFormat.JPEG);
+                Size[] sizes = map.getOutputSizes(ImageFormat.YUV_420_888); // ImageFormat.JPEG);
                 Size largest = Collections.max(
                         Arrays.asList(sizes), new CompareSizesByArea());
                 Collections.sort(Arrays.asList(sizes), new CompareSizesByArea());
                 Log.i(TAG, "Sizes of JPEG: " + Integer.toString(sizes.length));
                 Size smallest = /*(sizes.length > 1)? sizes[1]:*/ Collections.min(Arrays.asList(sizes), new CompareSizesByArea()); // bigger than the smallest
                 mImageReader = ImageReader.newInstance(smallest.getWidth(), smallest.getHeight(),
-                        ImageFormat.JPEG, /*maxImages*/2);
+                        ImageFormat.YUV_420_888, 2); // ImageFormat.JPEG, /*maxImages*/2);
                 mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, mUIHandler);
 
                 // Find out if we need to swap dimension to get the preview size relative to sensor
@@ -832,7 +841,7 @@ public class Camera2BasicFragment extends Fragment
             mState = STATE_WAITING_LOCK;
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
                     mBackgroundCaptureHandler);
-            Log.i(TAG, "capture called");
+            Log.i(TAG, "lockFocus() capture called");
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -844,6 +853,7 @@ public class Camera2BasicFragment extends Fragment
      */
     private void runPrecaptureSequence() {
         try {
+            Log.i(TAG, "runPrecaptureSequence()");
             // This is how to tell the camera to trigger.
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
                     CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START);
@@ -862,6 +872,7 @@ public class Camera2BasicFragment extends Fragment
      */
     private void captureStillPicture() {
         try {
+            Log.i(TAG, "captureStillPicture() called");
             final Activity activity = getActivity();
             if (null == activity || null == mCameraDevice) {
                 Log.i(TAG, "captureStillPicture() null == activity || null == mCameraDevice");
@@ -895,8 +906,8 @@ public class Camera2BasicFragment extends Fragment
             };
 
             mCaptureSession.stopRepeating();
-            mCaptureSession.capture(captureBuilder.build(), CaptureCallback, null);
-            Log.i(TAG, "mCaptureSession.capture(...)");
+            mCaptureSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundCaptureHandler); // TZs it was null
+            Log.i(TAG, "captureStillPicture() mCaptureSession.capture(...)");
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -922,14 +933,15 @@ public class Camera2BasicFragment extends Fragment
      */
     private void unlockFocus() {
         try {
+            Log.i(TAG, "unlockFocus()");
             // Reset the auto-focus trigger
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
             setAutoFlash(mPreviewRequestBuilder);
+            // After this, the camera will go back to the normal state of preview.
+            mState = STATE_PREVIEW;  // TZs moved up from after capture
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
                     mBackgroundCaptureHandler);
-            // After this, the camera will go back to the normal state of preview.
-            mState = STATE_PREVIEW;
             mCaptureSession.setRepeatingRequest(mPreviewRequest, mCaptureCallback,
                     mBackgroundHandler);
         } catch (CameraAccessException e) {
