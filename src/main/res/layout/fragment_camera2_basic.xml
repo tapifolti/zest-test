@@ -15,39 +15,34 @@
 -->
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:gravity="center_vertical|center_horizontal"
+    android:background="@color/control_background">
 
     <com.example.android.camera2basic.AutoFitTextureView
         android:id="@+id/texture"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentTop="true" />
+        android:layout_above="@+id/control"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_centerInParent="true" />
 
     <FrameLayout
         android:id="@+id/control"
         android:layout_width="match_parent"
-        android:layout_height="112dp"
+        android:layout_height="50dp"
         android:layout_alignParentBottom="true"
         android:layout_alignParentStart="true"
-        android:background="@color/control_background">
-
-        <Button
-            android:id="@+id/picture"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="top|center_horizontal"
-            android:text="@string/picture"
-            android:layout_marginTop="10dp" />
+        android:background="@color/control_background" >
 
         <TextView
-            android:layout_width="371dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceLarge"
             android:text="@string/emoString"
             android:id="@+id/emoResult"
-            android:layout_gravity="center_horizontal|bottom"
-            android:layout_marginBottom="10dp"
+            android:layout_gravity="center"
             android:maxHeight="40dp"
             android:maxWidth="250dp"
             android:textColor="#840202"
@@ -59,7 +54,8 @@
             android:gravity="center"
             android:inputType="none"
             android:letterSpacing="1"
-            android:textSize="20sp" />
+            android:textSize="25sp"
+            android:singleLine="true" />
 
     </FrameLayout>
 

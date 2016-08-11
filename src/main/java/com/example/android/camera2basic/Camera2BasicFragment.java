@@ -221,13 +221,11 @@ public class Camera2BasicFragment extends Fragment
      * An additional thread for running tasks that shouldn't block the UI.
      */
     private HandlerThread mBackgroundThread;
-    private HandlerThread mBackgroundCaptureThread;
 
     /**
      * A {@link Handler} for running tasks in the background.
      */
     private Handler mBackgroundHandler;
-    private Handler mBackgroundCaptureHandler;
 
     /**
      * An {@link ImageReader} that handles still image capture.
@@ -542,6 +540,9 @@ public class Camera2BasicFragment extends Fragment
                 }
                 Log.i(TAG, "Lens facing: " + Integer.toString(facing));
 
+                int maxProc = characteristics.get(CameraCharacteristics.REQUEST_MAX_NUM_OUTPUT_PROC);
+                Log.i(TAG, "REQUEST_MAX_NUM_OUTPUT_PROC: " + Integer.toString(maxProc));
+
                 StreamConfigurationMap map = characteristics.get(
                         CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                 if (map == null) {
@@ -549,15 +550,18 @@ public class Camera2BasicFragment extends Fragment
                 }
                 Log.i(TAG, "Scaler Stream Configuration Map got");
 
+                int[] outputFormats = map.getOutputFormats();
+                Log.i(TAG, "Output Formats: " + Arrays.toString(outputFormats));
+
                 // For still image captures, we use the smallest available size.
-                Size[] sizes = map.getOutputSizes(ImageFormat.YUV_420_888); // ImageFormat.JPEG);
+                Size[] sizes = map.getOutputSizes(ImageFormat.JPEG); // ImageFormat.YUV_420_888);
                 Size largest = Collections.max(
                         Arrays.asList(sizes), new CompareSizesByArea());
                 Collections.sort(Arrays.asList(sizes), new CompareSizesByArea());
-                Log.i(TAG, "Sizes of JPEG: " + Integer.toString(sizes.length));
+                Log.i(TAG, "Number of Image Sizes: " + Integer.toString(sizes.length));
                 Size smallest = /*(sizes.length > 1)? sizes[1]:*/ Collections.min(Arrays.asList(sizes), new CompareSizesByArea()); // bigger than the smallest
                 mImageReader = ImageReader.newInstance(smallest.getWidth(), smallest.getHeight(),
-                        ImageFormat.YUV_420_888, 2); // ImageFormat.JPEG, /*maxImages*/2);
+                        ImageFormat.JPEG, 2); // ImageFormat.YUV_420_888, /*maxImages*/2);
                 mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, mUIHandler);
 
                 // Find out if we need to swap dimension to get the preview size relative to sensor
@@ -703,9 +707,6 @@ public class Camera2BasicFragment extends Fragment
         mBackgroundThread = new HandlerThread("CameraBackground");
         mBackgroundThread.start();
         mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
-        mBackgroundCaptureThread = new HandlerThread("CameraCaptureBackground");
-        mBackgroundCaptureThread.start();
-        mBackgroundCaptureHandler = new Handler(mBackgroundCaptureThread.getLooper());
     }
 
     /**
@@ -713,14 +714,10 @@ public class Camera2BasicFragment extends Fragment
      */
     private void stopBackgroundThread() {
         mBackgroundThread.quitSafely();
-        mBackgroundCaptureThread.quitSafely();
         try {
             mBackgroundThread.join();
             mBackgroundThread = null;
             mBackgroundHandler = null;
-            mBackgroundCaptureThread.join();
-            mBackgroundCaptureThread = null;
-            mBackgroundCaptureHandler = null;
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -840,7 +837,7 @@ public class Camera2BasicFragment extends Fragment
             // Tell #mCaptureCallback to wait for the lock.
             mState = STATE_WAITING_LOCK;
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundCaptureHandler);
+                    mBackgroundHandler);
             Log.i(TAG, "lockFocus() capture called");
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -860,7 +857,7 @@ public class Camera2BasicFragment extends Fragment
             // Tell #mCaptureCallback to wait for the precapture sequence to be set.
             mState = STATE_WAITING_PRECAPTURE;
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundCaptureHandler);
+                    mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -901,12 +898,30 @@ public class Camera2BasicFragment extends Fragment
                                                @NonNull TotalCaptureResult result) {
                     // showToast("Saved: " + mFile);
                     // Log.d(TAG, "Saved: " + mFile.toString());
+                    Log.i(TAG, "captureStillPicture() onCaptureCompleted()");
                     unlockFocus();
                 }
+
+                @Override
+                public void onCaptureProgressed(CameraCaptureSession session, CaptureRequest request, CaptureResult partialResult) {
+                    Log.i(TAG, "captureStillPicture() onCaptureProgressed()");
+                }
+
+                @Override
+                public void onCaptureSequenceCompleted(CameraCaptureSession session, int sequenceId, long frameNumber) {
+                    Log.i(TAG, "captureStillPicture() onCaptureSequenceCompleted()");
+                }
+
+                @Override
+                public void onCaptureStarted(CameraCaptureSession session, CaptureRequest request, long timestamp, long frameNumber) {
+                    Log.i(TAG, "captureStillPicture() onCaptureStarted()");
+                }
+
+
             };
 
             mCaptureSession.stopRepeating();
-            mCaptureSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundCaptureHandler); // TZs it was null
+            mCaptureSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundHandler); // TZs it was null
             Log.i(TAG, "captureStillPicture() mCaptureSession.capture(...)");
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -941,7 +956,7 @@ public class Camera2BasicFragment extends Fragment
             // After this, the camera will go back to the normal state of preview.
             mState = STATE_PREVIEW;  // TZs moved up from after capture
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundCaptureHandler);
+                    mBackgroundHandler);
             mCaptureSession.setRepeatingRequest(mPreviewRequest, mCaptureCallback,
                     mBackgroundHandler);
         } catch (CameraAccessException e) {
