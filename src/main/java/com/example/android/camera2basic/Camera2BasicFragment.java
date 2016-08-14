@@ -220,12 +220,14 @@ public class Camera2BasicFragment extends Fragment
     /**
      * An additional thread for running tasks that shouldn't block the UI.
      */
-    private HandlerThread mBackgroundThread;
+    private HandlerThread mBackgroundPreviewThread;
+    private HandlerThread mBackgroundCaptureThread;
 
     /**
      * A {@link Handler} for running tasks in the background.
      */
-    private Handler mBackgroundHandler;
+    private Handler mBackgroundPreviewHandler;
+    private Handler mBackgroundCaptureHandler;
 
     /**
      * An {@link ImageReader} that handles still image capture.
@@ -251,10 +253,7 @@ public class Camera2BasicFragment extends Fragment
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            Log.i(TAG, "onImageAvailable(...) called");
-            Image image = reader.acquireNextImage();
-            Log.i(TAG, "onImageAvailable(...) image acquired");
-            new EmotionApiCallAsyncTask(mTextView).execute(image);
+            new EmotionApiCallAsyncTask(mTextView).execute(reader.acquireNextImage());
             Log.i(TAG, "onImageAvailable(...) execute called");
         }
 
@@ -293,7 +292,7 @@ public class Camera2BasicFragment extends Fragment
     private int mSensorOrientation;
 
     /**
-     * A {@link CameraCaptureSession.CaptureCallback} that handles events related to JPEG capture.
+     * A {@link CameraCaptureSession.CaptureCallback} that handles events related to preview and JPEG capture.
      */
     private CameraCaptureSession.CaptureCallback mCaptureCallback
             = new CameraCaptureSession.CaptureCallback() {
@@ -352,19 +351,18 @@ public class Camera2BasicFragment extends Fragment
             }
         }
 
-        @Override
-        public void onCaptureProgressed(@NonNull CameraCaptureSession session,
-                                        @NonNull CaptureRequest request,
-                                        @NonNull CaptureResult partialResult) {
-            Log.i(TAG, "onCaptureProgressed(...) mState:" + Integer.toString(mState));
-            process(partialResult);
-        }
+//        @Override
+//        // never called
+//        public void onCaptureProgressed(@NonNull CameraCaptureSession session,
+//                                        @NonNull CaptureRequest request,
+//                                        @NonNull CaptureResult partialResult) {
+//            process(partialResult);
+//        }
 
         @Override
         public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                        @NonNull CaptureRequest request,
                                        @NonNull TotalCaptureResult result) {
-            Log.i(TAG, "onCaptureCompleted(...) mState:" + Integer.toString(mState));
             process(result);
         }
 
@@ -488,7 +486,7 @@ public class Camera2BasicFragment extends Fragment
     public void onPause() {
         mUIHandler.removeCallbacks(takePictureTask);
         closeCamera();
-        stopBackgroundThread();
+        stopBackgroundThreads();
         super.onPause();
     }
 
@@ -667,7 +665,7 @@ public class Camera2BasicFragment extends Fragment
             if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
                 throw new RuntimeException("Time out waiting to lock camera opening.");
             }
-            manager.openCamera(mCameraId, mStateCallback, mBackgroundHandler);
+            manager.openCamera(mCameraId, mStateCallback, mBackgroundPreviewHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
@@ -704,20 +702,27 @@ public class Camera2BasicFragment extends Fragment
      * Starts a background thread and its {@link Handler}.
      */
     private void startBackgroundThread() {
-        mBackgroundThread = new HandlerThread("CameraBackground");
-        mBackgroundThread.start();
-        mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
+        mBackgroundPreviewThread = new HandlerThread("CameraBackground");
+        mBackgroundPreviewThread.start();
+        mBackgroundPreviewHandler = new Handler(mBackgroundPreviewThread.getLooper());
+        mBackgroundCaptureThread = new HandlerThread("CameraBackground");
+        mBackgroundCaptureThread.start();
+        mBackgroundCaptureHandler = new Handler(mBackgroundCaptureThread.getLooper());
     }
 
     /**
      * Stops the background thread and its {@link Handler}.
      */
-    private void stopBackgroundThread() {
-        mBackgroundThread.quitSafely();
+    private void stopBackgroundThreads() {
+        mBackgroundPreviewThread.quitSafely();
+        mBackgroundCaptureThread.quitSafely();
         try {
-            mBackgroundThread.join();
-            mBackgroundThread = null;
-            mBackgroundHandler = null;
+            mBackgroundPreviewThread.join();
+            mBackgroundPreviewThread = null;
+            mBackgroundPreviewHandler = null;
+            mBackgroundCaptureThread.join();
+            mBackgroundCaptureThread = null;
+            mBackgroundCaptureHandler = null;
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -761,12 +766,12 @@ public class Camera2BasicFragment extends Fragment
                                 mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
                                         CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
                                 // Flash is automatically enabled when necessary.
-                                setAutoFlash(mPreviewRequestBuilder);
+                                // setAutoFlash(mPreviewRequestBuilder);
 
                                 // Finally, we start displaying the camera preview.
                                 mPreviewRequest = mPreviewRequestBuilder.build();
                                 mCaptureSession.setRepeatingRequest(mPreviewRequest,
-                                        mCaptureCallback, mBackgroundHandler);
+                                        mCaptureCallback, mBackgroundPreviewHandler);
                             } catch (CameraAccessException e) {
                                 e.printStackTrace();
                             }
@@ -830,15 +835,14 @@ public class Camera2BasicFragment extends Fragment
      */
     private void lockFocus() {
         try {
-            Log.i(TAG, "lockFocus");
             // This is how to tell the camera to lock focus.
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_START);
             // Tell #mCaptureCallback to wait for the lock.
             mState = STATE_WAITING_LOCK;
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundHandler);
-            Log.i(TAG, "lockFocus() capture called");
+                    mBackgroundCaptureHandler);
+            Log.i(TAG, "lockFocus() capture(...) called");
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -850,14 +854,14 @@ public class Camera2BasicFragment extends Fragment
      */
     private void runPrecaptureSequence() {
         try {
-            Log.i(TAG, "runPrecaptureSequence()");
             // This is how to tell the camera to trigger.
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
                     CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER_START);
             // Tell #mCaptureCallback to wait for the precapture sequence to be set.
             mState = STATE_WAITING_PRECAPTURE;
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundHandler);
+                    mBackgroundCaptureHandler);
+            Log.i(TAG, "runPrecaptureSequence() capture(...) called");
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -869,7 +873,6 @@ public class Camera2BasicFragment extends Fragment
      */
     private void captureStillPicture() {
         try {
-            Log.i(TAG, "captureStillPicture() called");
             final Activity activity = getActivity();
             if (null == activity || null == mCameraDevice) {
                 Log.i(TAG, "captureStillPicture() null == activity || null == mCameraDevice");
@@ -883,7 +886,7 @@ public class Camera2BasicFragment extends Fragment
             // Use the same AE and AF modes as the preview.
             captureBuilder.set(CaptureRequest.CONTROL_AF_MODE,
                     CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-            setAutoFlash(captureBuilder);
+            // setAutoFlash(captureBuilder);
 
             // Orientation
             int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
@@ -901,28 +904,11 @@ public class Camera2BasicFragment extends Fragment
                     Log.i(TAG, "captureStillPicture() onCaptureCompleted()");
                     unlockFocus();
                 }
-
-                @Override
-                public void onCaptureProgressed(CameraCaptureSession session, CaptureRequest request, CaptureResult partialResult) {
-                    Log.i(TAG, "captureStillPicture() onCaptureProgressed()");
-                }
-
-                @Override
-                public void onCaptureSequenceCompleted(CameraCaptureSession session, int sequenceId, long frameNumber) {
-                    Log.i(TAG, "captureStillPicture() onCaptureSequenceCompleted()");
-                }
-
-                @Override
-                public void onCaptureStarted(CameraCaptureSession session, CaptureRequest request, long timestamp, long frameNumber) {
-                    Log.i(TAG, "captureStillPicture() onCaptureStarted()");
-                }
-
-
             };
 
-            mCaptureSession.stopRepeating();
-            mCaptureSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundHandler); // TZs it was null
-            Log.i(TAG, "captureStillPicture() mCaptureSession.capture(...)");
+            // mCaptureSession.stopRepeating();
+            mCaptureSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundCaptureHandler); // TZs it was null
+            Log.i(TAG, "captureStillPicture() capture(...) called");
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -952,13 +938,12 @@ public class Camera2BasicFragment extends Fragment
             // Reset the auto-focus trigger
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
-            setAutoFlash(mPreviewRequestBuilder);
+            // setAutoFlash(mPreviewRequestBuilder);
             // After this, the camera will go back to the normal state of preview.
             mState = STATE_PREVIEW;  // TZs moved up from after capture
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
-                    mBackgroundHandler);
-            mCaptureSession.setRepeatingRequest(mPreviewRequest, mCaptureCallback,
-                    mBackgroundHandler);
+                    mBackgroundCaptureHandler);
+            // mCaptureSession.setRepeatingRequest(mPreviewRequest, mCaptureCallback, mBackgroundPreviewHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -984,12 +969,12 @@ public class Camera2BasicFragment extends Fragment
 //        }
 //    }
 
-    private void setAutoFlash(CaptureRequest.Builder requestBuilder) {
-        if (mFlashSupported) {
-            requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                    CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
-        }
-    }
+//    private void setAutoFlash(CaptureRequest.Builder requestBuilder) {
+//        if (mFlashSupported) {
+//            requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
+//                    CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+//        }
+//    }
 
 
 //    /**
