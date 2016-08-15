@@ -1,13 +1,10 @@
-package com.example.android.camera2basic;
+package com.tapifolti.emotiondetection;
 
 import android.media.Image;
 import android.os.AsyncTask;
 import android.os.SystemClock;
 import android.util.Log;
 import android.widget.TextView;
-
-import java.io.FileOutputStream;
-import java.io.IOException;
 
 /**
  * AsyncTask to make REST api call for emotion detection
@@ -23,7 +20,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
     protected String doInBackground(Image... params) {
         // TODO call emotion API
         if (params == null || params.length == 0) {
-            Log.i(Camera2BasicFragment.TAG, "no image got to call API with");
+            Log.i(EmotionDetectionFragment.TAG, "no image got to call API with");
             return "";
         }
 
@@ -32,7 +29,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             params[0].close();
         }
 
-        Log.i(Camera2BasicFragment.TAG, "doInBackground called");
+        Log.i(EmotionDetectionFragment.TAG, "doInBackground called");
         return Long.toString(SystemClock.uptimeMillis());
     }
 

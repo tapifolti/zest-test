@@ -1,20 +1,9 @@
 /*
- * Copyright 2014 The Android Open Source Project
+ * Copyright 2016 Continuous Emotion Detection
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 
-package com.example.android.camera2basic;
+package com.tapifolti.emotiondetection;
 
 import android.Manifest;
 import android.app.Activity;
@@ -41,7 +30,6 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
-import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
 import android.os.Handler;
@@ -68,16 +56,16 @@ import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-public class Camera2BasicFragment extends Fragment
-        implements FragmentCompat.OnRequestPermissionsResultCallback /*, View.OnClickListener */ {
+public class EmotionDetectionFragment extends Fragment
+        implements FragmentCompat.OnRequestPermissionsResultCallback {
 
-    /**
-     * Conversion from screen rotation to JPEG orientation.
-     */
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
     private static final int REQUEST_APP_PERMISSION = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
 
+    /**
+     * Conversion from screen rotation to JPEG orientation.
+     */
     static {
         ORIENTATIONS.append(Surface.ROTATION_0, 90);
         ORIENTATIONS.append(Surface.ROTATION_90, 0);
@@ -88,7 +76,7 @@ public class Camera2BasicFragment extends Fragment
     /**
      * Tag for the {@link Log}.
      */
-    public static final String TAG = "Camera2BasicFragment";
+    public static final String TAG = "EmotionDetection";
 
     /**
      * Camera state: Showing camera preview.
@@ -234,11 +222,6 @@ public class Camera2BasicFragment extends Fragment
      */
     private ImageReader mImageReader;
 
-//    /**
-//     * This is the output file for our picture.
-//     */
-//    private File mFile;
-
     /**
      * the UI thread Handler
      */
@@ -351,14 +334,6 @@ public class Camera2BasicFragment extends Fragment
             }
         }
 
-//        @Override
-//        // never called
-//        public void onCaptureProgressed(@NonNull CameraCaptureSession session,
-//                                        @NonNull CaptureRequest request,
-//                                        @NonNull CaptureResult partialResult) {
-//            process(partialResult);
-//        }
-
         @Override
         public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                        @NonNull CaptureRequest request,
@@ -368,22 +343,6 @@ public class Camera2BasicFragment extends Fragment
 
     };
 
-//    /**
-//     * Shows a {@link Toast} on the UI thread.
-//     *
-//     * @param text The message to show
-//     */
-//    private void showToast(final String text) {
-//        final Activity activity = getActivity();
-//        if (activity != null) {
-//            activity.runOnUiThread(new Runnable() {
-//                @Override
-//                public void run() {
-//                    Toast.makeText(activity, text, Toast.LENGTH_SHORT).show();
-//                }
-//            });
-//        }
-//    }
 
     /**
      * Given {@code choices} of {@code Size}s supported by a camera, choose the smallest one that
@@ -434,8 +393,8 @@ public class Camera2BasicFragment extends Fragment
         }
     }
 
-    public static Camera2BasicFragment newInstance() {
-        return new Camera2BasicFragment();
+    public static EmotionDetectionFragment newInstance() {
+        return new EmotionDetectionFragment();
     }
 
     @Override
@@ -446,8 +405,6 @@ public class Camera2BasicFragment extends Fragment
 
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
-        // view.findViewById(R.id.picture).setOnClickListener(this);
-        // view.findViewById(R.id.info).setOnClickListener(this);
         mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
         mTextView = (TextView)view.findViewById(R.id.emoResult);
     }
@@ -455,7 +412,6 @@ public class Camera2BasicFragment extends Fragment
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        // mFile = new File(getActivity().getExternalFilesDir(null), "pic.jpg");
         mUIHandler = new Handler(Looper.getMainLooper());
     }
 
@@ -649,11 +605,13 @@ public class Camera2BasicFragment extends Fragment
     }
 
     /**
-     * Opens the camera specified by {@link Camera2BasicFragment#mCameraId}.
+     * Opens the camera specified by {@link EmotionDetectionFragment#mCameraId}.
      */
     private void openCamera(int width, int height) {
         if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED) {
+                != PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.INTERNET)
+                        != PackageManager.PERMISSION_GRANTED) {
             requestCameraPermission();
             return;
         }
@@ -765,8 +723,6 @@ public class Camera2BasicFragment extends Fragment
                                 // Auto focus should be continuous for camera preview.
                                 mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE,
                                         CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-                                // Flash is automatically enabled when necessary.
-                                // setAutoFlash(mPreviewRequestBuilder);
 
                                 // Finally, we start displaying the camera preview.
                                 mPreviewRequest = mPreviewRequestBuilder.build();
@@ -886,7 +842,6 @@ public class Camera2BasicFragment extends Fragment
             // Use the same AE and AF modes as the preview.
             captureBuilder.set(CaptureRequest.CONTROL_AF_MODE,
                     CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-            // setAutoFlash(captureBuilder);
 
             // Orientation
             int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
@@ -899,14 +854,11 @@ public class Camera2BasicFragment extends Fragment
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                                @NonNull CaptureRequest request,
                                                @NonNull TotalCaptureResult result) {
-                    // showToast("Saved: " + mFile);
-                    // Log.d(TAG, "Saved: " + mFile.toString());
                     Log.i(TAG, "captureStillPicture() onCaptureCompleted()");
                     unlockFocus();
                 }
             };
 
-            // mCaptureSession.stopRepeating();
             mCaptureSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundCaptureHandler); // TZs it was null
             Log.i(TAG, "captureStillPicture() capture(...) called");
         } catch (CameraAccessException e) {
@@ -938,88 +890,14 @@ public class Camera2BasicFragment extends Fragment
             // Reset the auto-focus trigger
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
-            // setAutoFlash(mPreviewRequestBuilder);
             // After this, the camera will go back to the normal state of preview.
-            mState = STATE_PREVIEW;  // TZs moved up from after capture
+            mState = STATE_PREVIEW;
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
                     mBackgroundCaptureHandler);
-            // mCaptureSession.setRepeatingRequest(mPreviewRequest, mCaptureCallback, mBackgroundPreviewHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
-
-//    @Override
-//    public void onClick(View view) {
-//        switch (view.getId()) {
-//            case R.id.picture: {
-//                takePicture();
-//                break;
-//            }
-//            case R.id.info: {
-//                Activity activity = getActivity();
-//                if (null != activity) {
-//                    new AlertDialog.Builder(activity)
-//                            .setMessage(R.string.intro_message)
-//                            .setPositiveButton(android.R.string.ok, null)
-//                            .show();
-//                }
-//                break;
-//            }
-//        }
-//    }
-
-//    private void setAutoFlash(CaptureRequest.Builder requestBuilder) {
-//        if (mFlashSupported) {
-//            requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-//                    CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
-//        }
-//    }
-
-
-//    /**
-//     * Saves a JPEG {@link Image} into the specified {@link File}.
-//     */
-//    private static class ImageSaver implements Runnable {
-//
-//        /**
-//         * The JPEG image
-//         */
-//        private final Image mImage;
-//        /**
-//         * The file we save the image into.
-//         */
-//        private final File mFile;
-//
-//        public ImageSaver(Image image, File file) {
-//            mImage = image;
-//            mFile = file;
-//        }
-//
-//        @Override
-//        public void run() {
-//            ByteBuffer buffer = mImage.getPlanes()[0].getBuffer();
-//            byte[] bytes = new byte[buffer.remaining()];
-//            buffer.get(bytes);
-//            FileOutputStream output = null;
-//            try {
-//                output = new FileOutputStream(mFile);
-//                output.write(bytes);
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//            } finally {
-//                mImage.close();
-//                if (null != output) {
-//                    try {
-//                        output.close();
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
-//                }
-//            }
-//        }
-//
-//    }
 
     /**
      * Compares two {@code Size}s based on their areas.
