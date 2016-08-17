@@ -31,6 +31,7 @@ import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.ImageReader;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -227,6 +228,8 @@ public class EmotionDetectionFragment extends Fragment
      */
     private Handler mUIHandler;
 
+    private ConnectivityManager mConnMgr;
+
     /**
      * This a callback object for the {@link ImageReader}. "onImageAvailable" will be called when a
      * still image is ready to be saved.
@@ -236,7 +239,7 @@ public class EmotionDetectionFragment extends Fragment
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            new EmotionApiCallAsyncTask(mTextView).execute(reader.acquireNextImage());
+            new EmotionApiCallAsyncTask(mTextView, mConnMgr, false).execute(reader.acquireNextImage());
             Log.i(TAG, "onImageAvailable(...) execute called");
         }
 
@@ -281,7 +284,7 @@ public class EmotionDetectionFragment extends Fragment
             = new CameraCaptureSession.CaptureCallback() {
 
         private void process(CaptureResult result) {
-            Log.i(TAG, "mCaptureCallback process(...) mState:" + Integer.toString(mState));
+            // Log.i(TAG, "mCaptureCallback process(...) mState:" + Integer.toString(mState));
             switch (mState) {
                 case STATE_PREVIEW: {
                     // We have nothing to do when the camera preview is working normally.
@@ -289,9 +292,9 @@ public class EmotionDetectionFragment extends Fragment
                 }
                 case STATE_WAITING_LOCK: {
                     Integer afState = result.get(CaptureResult.CONTROL_AF_STATE);
-                    Log.i(TAG, "STATE_WAITING_LOCK afState:" + Integer.toString(afState));
+                    // Log.i(TAG, "STATE_WAITING_LOCK afState:" + Integer.toString(afState));
                     if (afState == null || afState == 0) { // Tzs  added || afState == 0
-                        Log.i(TAG, "mCaptureCallback process(...) (afState == null || afState == 0) captureStillPicture()");
+                        // Log.i(TAG, "mCaptureCallback process(...) (afState == null || afState == 0) captureStillPicture()");
                         mState = STATE_PICTURE_TAKEN; // TZs missing was added
                         captureStillPicture();
                     } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState ||
@@ -300,7 +303,7 @@ public class EmotionDetectionFragment extends Fragment
                         Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
                         if (aeState == null ||
                                 aeState == CaptureResult.CONTROL_AE_STATE_CONVERGED) {
-                            Log.i(TAG, "mCaptureCallback process(...) (afState != null) captureStillPicture()");
+                            // Log.i(TAG, "mCaptureCallback process(...) (afState != null) captureStillPicture()");
                             mState = STATE_PICTURE_TAKEN;
                             captureStillPicture();
                         } else {
@@ -312,12 +315,12 @@ public class EmotionDetectionFragment extends Fragment
                 case STATE_WAITING_PRECAPTURE: {
                     // CONTROL_AE_STATE can be null on some devices
                     Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
-                    Log.i(TAG, "mCaptureCallback process(...) STATE_WAITING_PRECAPTURE");
+                    // Log.i(TAG, "mCaptureCallback process(...) STATE_WAITING_PRECAPTURE");
                     if (aeState == null ||
                             aeState == CaptureResult.CONTROL_AE_STATE_PRECAPTURE ||
                             aeState == CaptureRequest.CONTROL_AE_STATE_FLASH_REQUIRED) {
                         mState = STATE_WAITING_NON_PRECAPTURE;
-                        Log.i(TAG, "mCaptureCallback process(...) STATE_WAITING_NON_PRECAPTURE was set");
+                        // Log.i(TAG, "mCaptureCallback process(...) STATE_WAITING_NON_PRECAPTURE was set");
                     }
                     break;
                 }
@@ -325,7 +328,7 @@ public class EmotionDetectionFragment extends Fragment
                     // CONTROL_AE_STATE can be null on some devices
                     Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
                     if (aeState == null || aeState != CaptureResult.CONTROL_AE_STATE_PRECAPTURE) {
-                        Log.i(TAG, "mCaptureCallback process(...) STATE_WAITING_NON_PRECAPTURE captureStillPicture()");
+                        // Log.i(TAG, "mCaptureCallback process(...) STATE_WAITING_NON_PRECAPTURE captureStillPicture()");
                         mState = STATE_PICTURE_TAKEN;
                         captureStillPicture();
                     }
@@ -413,6 +416,7 @@ public class EmotionDetectionFragment extends Fragment
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         mUIHandler = new Handler(Looper.getMainLooper());
+        mConnMgr = (ConnectivityManager)getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
     }
 
     Runnable takePictureTask = new Runnable() {
@@ -435,7 +439,7 @@ public class EmotionDetectionFragment extends Fragment
         } else {
             mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
         }
-        mUIHandler.postDelayed(takePictureTask, 1000);
+        mUIHandler.postDelayed(takePictureTask, 2000);
     }
 
     @Override
@@ -783,7 +787,7 @@ public class EmotionDetectionFragment extends Fragment
      */
     private void takePicture() {
         lockFocus();
-        mUIHandler.postDelayed(takePictureTask, 1000); // take picture ramdomly in a few sec
+        mUIHandler.postDelayed(takePictureTask, 2000); // take picture ramdomly in a few sec
     }
 
     /**
