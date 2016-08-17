@@ -1,6 +1,6 @@
 package com.tapifolti.emotiondetection;
 
-import android.content.Context;
+import android.app.Application;
 import android.media.Image;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -14,21 +14,17 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * AsyncTask to make REST api call for emotion detection
@@ -36,7 +32,8 @@ import java.util.Map;
 public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
 
     // TODO make configurable ?
-    private static final String emotionURL = "http://office.ultinous.com:11000/expr";
+    private static final String mEmotionURL = "http://office.ultinous.com:11000/expr";
+    private static AtomicInteger mSerial = new AtomicInteger(1);
     private TextView mTextView;
     private ConnectivityManager mConnMgr;
     private boolean mWifiOnly;
@@ -52,17 +49,19 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
         Log.i(EmotionDetectionFragment.TAG, "doInBackground called");
         if (params == null || params.length != 1) {
             Log.e(EmotionDetectionFragment.TAG, "no image/too many images got to call API with");
+            for (Image p : params) {
+                p.close();
+            }
             return insertNewLine("");
         }
         Image image = params[0];
         HttpURLConnection connection = null;
         DataOutputStream wr = null;
-        InputStream in = null;
+        BufferedReader reader = null;
         try {
             if (isConnected()) {
                 // TODO call emotion API
                 ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-                // byte[] bytes = buffer.array();
                 byte[] bytes = new byte[buffer.remaining()];
                 buffer.get(bytes);
                 image.close();
@@ -75,7 +74,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
                 JSONObject request = new JSONObject();
                 request.put("image", requestStr);
                 String requestJsonStr = request.toString();
-                URL url = new URL(emotionURL);
+                URL url = new URL(mEmotionURL);
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("POST");
                 connection.setRequestProperty("Content-Type", "application/json");
@@ -106,20 +105,19 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
 
                 // Get Response
                 InputStream respStream = connection.getInputStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(respStream));
+                reader = new BufferedReader(new InputStreamReader(respStream));
                 String respStr = reader.readLine();
+                reader.close();
+                reader = null;
 
                 Log.i(EmotionDetectionFragment.TAG, "JSon response: " + respStr);
                 String retStr = parseJson(respStr);
 
-                // Response headers
-//                Map<String, List<String>> respHeaders = connection.getHeaderFields();
-//                int headerCount = respHeaders.size();
-//                for (Map.Entry<String, List<String>> e: respHeaders.entrySet() ) {
-//                    Log.i(EmotionDetectionFragment.TAG, "Key: '" + e.getKey() + "' Value: '" + e.getValue() + "'");
-//                }
+                writeJpeg(bytes, requestJsonStr.length(), retStr);
 
                 return insertNewLine(retStr);
+            } else {
+                return insertNewLine("NETWORK ERROR");
             }
         } catch (JSONException | IOException e) {
             e.printStackTrace();
@@ -132,9 +130,9 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             if (image != null) {
                 image.close();
             }
-            if (in != null) {
+            if (reader != null) {
                 try {
-                in.close();
+                    reader.close();
                 } catch(IOException e) {}
             }
             if (connection != null) {
@@ -148,6 +146,28 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
     @Override
     protected void onPostExecute(String result) {
         mTextView.setText(result);
+    }
+
+    private void writeJpeg(byte[] bytes, int requestLen, String emotion) {
+
+        FileOutputStream output = null;
+        try {
+            File outDir = mTextView.getContext().getExternalFilesDir(null);
+            Log.i(EmotionDetectionFragment.TAG, "Output file path: " + outDir.getPath());
+            File mFile = new File(outDir, "p_"+ Integer.toString(mSerial.	getAndAdd(1)) + "_" + Integer.toString(requestLen) + "_" + emotion  + ".jpg");
+            output = new FileOutputStream(mFile);
+            output.write(bytes);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (null != output) {
+                try {
+                    output.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     private static String parseJson(String respStr) {
@@ -190,9 +210,12 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
     }
 
 
-    private static String insertNewLine(String in) {
+    private String insertNewLine(String in) {
         if (in == null || in.isEmpty())
             return "";
+        if (mTextView.getWidth() > mTextView.getHeight()) {
+            return in;
+        }
         String replaced = in.replaceAll("(.{1})", "$1\n");
         return replaced.substring(0, replaced.length()-1);
     }
