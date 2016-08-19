@@ -123,21 +123,25 @@ public class EmotionDetectionFragment extends Fragment
 
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture texture, int width, int height) {
+            Log.i(TAG, "onSurfaceTextureAvailable(...) called");
             openCamera(width, height);
         }
 
         @Override
         public void onSurfaceTextureSizeChanged(SurfaceTexture texture, int width, int height) {
+            Log.i(TAG, "onSurfaceTextureSizeChanged(...), Width, Height: " + Integer.toString(width) + ", " + Integer.toString(height));
             configureTransform(width, height);
         }
 
         @Override
         public boolean onSurfaceTextureDestroyed(SurfaceTexture texture) {
+            Log.i(TAG, "onSurfaceTextureDestroyed(...) called");
             return true;
         }
 
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture texture) {
+            // Log.i(TAG, "onSurfaceTextureUpdated(...) called");
         }
 
     };
@@ -240,7 +244,6 @@ public class EmotionDetectionFragment extends Fragment
         @Override
         public void onImageAvailable(ImageReader reader) {
             new EmotionApiCallAsyncTask(mTextView, mConnMgr, false).execute(reader.acquireNextImage());
-            Log.i(TAG, "onImageAvailable(...) execute called");
         }
 
     };
@@ -435,8 +438,10 @@ public class EmotionDetectionFragment extends Fragment
         // a camera and start preview from here (otherwise, we wait until the surface is ready in
         // the SurfaceTextureListener).
         if (mTextureView.isAvailable()) {
+            Log.i(TAG, "onResume() mTextureView.isAvailable() - TRUE");
             openCamera(mTextureView.getWidth(), mTextureView.getHeight());
         } else {
+            Log.i(TAG, "onResume() mTextureView.isAvailable() - FALSE");
             mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
         }
         mUIHandler.postDelayed(takePictureTask, 2000);
@@ -444,6 +449,7 @@ public class EmotionDetectionFragment extends Fragment
 
     @Override
     public void onPause() {
+        Log.i(TAG, "onPause() called");
         mUIHandler.removeCallbacks(takePictureTask);
         closeCamera();
         stopBackgroundThreads();
@@ -506,7 +512,7 @@ public class EmotionDetectionFragment extends Fragment
                 if (map == null) {
                     continue;
                 }
-                Log.i(TAG, "Scaler Stream Configuration Map got");
+                // Log.i(TAG, "Scaler Stream Configuration Map got");
 
                 int[] outputFormats = map.getOutputFormats();
                 Log.i(TAG, "Output Formats: " + Arrays.toString(outputFormats));
@@ -599,10 +605,11 @@ public class EmotionDetectionFragment extends Fragment
                 return;
             }
         } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException when setUpCameraOutputs(...)");
             e.printStackTrace();
         } catch (NullPointerException e) {
-            // Currently an NPE is thrown when the Camera2API is used but not supported on the
-            // device this code runs.
+            // Currently an NPE is thrown when Camera2API not supported on the device
+            Log.e(TAG, "NPE Camera2 API doesn't supported on this device");
             ErrorDialog.newInstance(getString(R.string.camera_error))
                     .show(getChildFragmentManager(), FRAGMENT_DIALOG);
         }
@@ -625,13 +632,19 @@ public class EmotionDetectionFragment extends Fragment
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
         try {
             if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
-                throw new RuntimeException("Time out waiting to lock camera opening.");
+                // throw new RuntimeException("Time out waiting to lock camera opening.");
+                ErrorDialog.newInstance(getString(R.string.camera_lockerror))
+                        .show(getChildFragmentManager(), FRAGMENT_DIALOG);
             }
             manager.openCamera(mCameraId, mStateCallback, mBackgroundPreviewHandler);
         } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException when openCamera(...)");
             e.printStackTrace();
         } catch (InterruptedException e) {
-            throw new RuntimeException("Interrupted while trying to lock camera opening.", e);
+            // throw new RuntimeException("Interrupted while trying to lock camera opening.", e);
+            ErrorDialog.newInstance(getString(R.string.camera_lockinterruped))
+                    .show(getChildFragmentManager(), FRAGMENT_DIALOG);
+
         }
     }
 
@@ -654,7 +667,9 @@ public class EmotionDetectionFragment extends Fragment
                 mImageReader = null;
             }
         } catch (InterruptedException e) {
-            throw new RuntimeException("Interrupted while trying to lock camera closing.", e);
+            // throw new RuntimeException("Interrupted while trying to lock camera closing.", e);
+            ErrorDialog.newInstance(getString(R.string.camera_lockinterrupedclose))
+                    .show(getChildFragmentManager(), FRAGMENT_DIALOG);
         } finally {
             mCameraOpenCloseLock.release();
         }
@@ -686,6 +701,7 @@ public class EmotionDetectionFragment extends Fragment
             mBackgroundCaptureThread = null;
             mBackgroundCaptureHandler = null;
         } catch (InterruptedException e) {
+            Log.e(TAG, "InterruptedException when stopBackgroundThreads(...)");
             e.printStackTrace();
         }
     }
@@ -717,7 +733,7 @@ public class EmotionDetectionFragment extends Fragment
                         public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
                             // The camera is already closed
                             if (null == mCameraDevice) {
-                                Log.i(TAG, "CameraCaptureSession.StateCallback onConfigured(..) null == mCameraDevice");
+                                Log.i(TAG, "The camera is already closed");
                                 return;
                             }
 
@@ -733,6 +749,7 @@ public class EmotionDetectionFragment extends Fragment
                                 mCaptureSession.setRepeatingRequest(mPreviewRequest,
                                         mCaptureCallback, mBackgroundPreviewHandler);
                             } catch (CameraAccessException e) {
+                                Log.e(TAG, "CameraAccessException when CameraCaptureSession.StateCallback(...)");
                                 e.printStackTrace();
                             }
                         }
@@ -745,6 +762,7 @@ public class EmotionDetectionFragment extends Fragment
                     }, null
             );
         } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException when createCameraPreviewSession(...)");
             e.printStackTrace();
         }
     }
@@ -804,6 +822,7 @@ public class EmotionDetectionFragment extends Fragment
                     mBackgroundCaptureHandler);
             Log.i(TAG, "lockFocus() capture(...) called");
         } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException when lockFocus(...)");
             e.printStackTrace();
         }
     }
@@ -823,6 +842,7 @@ public class EmotionDetectionFragment extends Fragment
                     mBackgroundCaptureHandler);
             Log.i(TAG, "runPrecaptureSequence() capture(...) called");
         } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException when runPrecaptureSequence(...)");
             e.printStackTrace();
         }
     }
@@ -835,7 +855,6 @@ public class EmotionDetectionFragment extends Fragment
         try {
             final Activity activity = getActivity();
             if (null == activity || null == mCameraDevice) {
-                Log.i(TAG, "captureStillPicture() null == activity || null == mCameraDevice");
                 return;
             }
             // This is the CaptureRequest.Builder that we use to take a picture.
@@ -866,6 +885,7 @@ public class EmotionDetectionFragment extends Fragment
             mCaptureSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundCaptureHandler); // TZs it was null
             Log.i(TAG, "captureStillPicture() capture(...) called");
         } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException when captureStillPicture(...)");
             e.printStackTrace();
         }
     }
@@ -890,7 +910,6 @@ public class EmotionDetectionFragment extends Fragment
      */
     private void unlockFocus() {
         try {
-            Log.i(TAG, "unlockFocus()");
             // Reset the auto-focus trigger
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
@@ -898,7 +917,9 @@ public class EmotionDetectionFragment extends Fragment
             mState = STATE_PREVIEW;
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
                     mBackgroundCaptureHandler);
+            Log.i(TAG, "unlockFocus() capture(...) called");
         } catch (CameraAccessException e) {
+            Log.e(TAG, "CameraAccessException when unlockFocus(...)");
             e.printStackTrace();
         }
     }
@@ -922,7 +943,7 @@ public class EmotionDetectionFragment extends Fragment
      */
     public static class ErrorDialog extends DialogFragment {
 
-        private static final String ARG_MESSAGE = "message";
+        private static final String ARG_MESSAGE = "Error";
 
         public static ErrorDialog newInstance(String message) {
             ErrorDialog dialog = new ErrorDialog();

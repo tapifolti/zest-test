@@ -1,11 +1,9 @@
 package com.tapifolti.emotiondetection;
 
-import android.app.Application;
 import android.media.Image;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
-import android.os.SystemClock;
 import android.util.Base64;
 import android.util.Log;
 import android.widget.TextView;
@@ -21,7 +19,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
+import java.net.ProtocolException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,12 +31,14 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
 
-    // TODO make configurable ?
+    // TODO make configurable HOW? make it obfuscated
     private static final String mEmotionURL = "http://office.ultinous.com:11000/expr";
     private static AtomicInteger mSerial = new AtomicInteger(1);
+
     private TextView mTextView;
     private ConnectivityManager mConnMgr;
     private boolean mWifiOnly;
+    private byte[] bytes; // TODO remove it from class level, when JPEG file is not needed
 
     public EmotionApiCallAsyncTask(TextView textView, ConnectivityManager connMgr, boolean wifiOnly) {
         mTextView = textView;
@@ -52,100 +54,143 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             for (Image p : params) {
                 p.close();
             }
-            return insertNewLine("");
+            return "NO PICTURE";
         }
-        Image image = params[0];
+        String retStr = "";
+        if (!isConnected()) {
+            params[0].close();
+            retStr = "NETWORK ERROR";
+            return retStr;
+        }
         HttpURLConnection connection = null;
-        DataOutputStream wr = null;
-        BufferedReader reader = null;
         try {
-            if (isConnected()) {
-                // TODO call emotion API
-                ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-                byte[] bytes = new byte[buffer.remaining()];
-                buffer.get(bytes);
-                image.close();
-                image = null;
-                Log.i(EmotionDetectionFragment.TAG, "Start Base64.encode");
-                // request: bytes -> base64 encode -> UTF-8 decode
-                byte[] baseBuf = Base64.encode(bytes, Base64.DEFAULT);
-                String requestStr = new String(baseBuf, "UTF-8");
-                Log.i(EmotionDetectionFragment.TAG, "Finished UTF-8 String");
-                JSONObject request = new JSONObject();
-                request.put("image", requestStr);
-                String requestJsonStr = request.toString();
-                URL url = new URL(mEmotionURL);
-                connection = (HttpURLConnection) url.openConnection();
-                connection.setRequestMethod("POST");
-                connection.setRequestProperty("Content-Type", "application/json");
-                connection.setRequestProperty("Content-Length", "" + Integer.toString(requestJsonStr.length()));
-
-                connection.setUseCaches(false);
-                connection.setDoInput(true);
-                connection.setDoOutput(true);
-                connection.setFixedLengthStreamingMode(requestJsonStr.length());
-
-                //Send request
-                wr = new DataOutputStream(connection.getOutputStream());
-                wr.writeBytes(requestJsonStr);
-                wr.flush();
-                wr.close();
-                wr = null;
-
-                connection.connect();
-
-                int httpCode = connection.getResponseCode();
-                String httpMsg = connection.getResponseMessage();
-
-                Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + Integer.toString(httpCode) + ") " + httpMsg);
-
-                if (httpCode != HttpURLConnection.HTTP_OK) {
-                    return insertNewLine("API ERROR");
-                }
-
-                // Get Response
-                InputStream respStream = connection.getInputStream();
-                reader = new BufferedReader(new InputStreamReader(respStream));
-                String respStr = reader.readLine();
-                reader.close();
-                reader = null;
-
-                Log.i(EmotionDetectionFragment.TAG, "JSon response: " + respStr);
-                String retStr = parseJson(respStr);
-
-                writeJpeg(bytes, requestJsonStr.length(), retStr);
-
-                return insertNewLine(retStr);
-            } else {
-                return insertNewLine("NETWORK ERROR");
+            // call emotion API
+            String requestJsonStr = createRequestBody(params[0]);
+            connection = (HttpURLConnection) new URL(mEmotionURL).openConnection();
+            if (requestJsonStr != null && requestJsonStr.length() > 0) {
+                writeRequest(connection, requestJsonStr);
             }
-        } catch (JSONException | IOException e) {
+
+            connection.connect();
+
+            int httpCode = connection.getResponseCode();
+            String httpMsg = connection.getResponseMessage();
+
+            Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + Integer.toString(httpCode) + ") " + httpMsg);
+
+            if (httpCode != HttpURLConnection.HTTP_OK) {
+                retStr = "API ERROR";
+                return retStr;
+            }
+
+            String respStr = readResponse(connection);
+            connection.disconnect();
+            connection = null;
+
+            Log.i(EmotionDetectionFragment.TAG, "JSon response: " + respStr);
+            retStr = parseJson(respStr);
+
+            writeJpeg(bytes, requestJsonStr.length(), retStr);
+
+            return retStr;
+        } catch (IOException e) {
+            Log.e(EmotionDetectionFragment.TAG, "Exception while calling emotion API");
             e.printStackTrace();
+            retStr = "ERROR";
         } finally {
-            if (wr != null) {
-                try {
-                    wr.close();
-                } catch(IOException e) {}
-            }
-            if (image != null) {
-                image.close();
-            }
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch(IOException e) {}
-            }
             if (connection != null) {
                 connection.disconnect();
             }
         }
 
-        return Long.toString(SystemClock.uptimeMillis());
+        return retStr;
+        // return Long.toString(SystemClock.uptimeMillis());
     }
 
     @Override
     protected void onPostExecute(String result) {
-        mTextView.setText(result);
+        if (result != null && !result.isEmpty()) {
+            mTextView.setText(insertNewLine(result));
+        }
+    }
+
+    private static String readResponse(HttpURLConnection connection) {
+        BufferedReader reader = null;
+        try {
+            InputStream respStream = connection.getInputStream();
+            reader = new BufferedReader(new InputStreamReader(respStream));
+            String respStr = reader.readLine();
+            return respStr;
+        } catch (IOException e) {
+            Log.e(EmotionDetectionFragment.TAG, "Exception while reading reponse");
+            e.printStackTrace();
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "";
+    }
+
+    private static void writeRequest(HttpURLConnection connection, String requestJsonStr) {
+        DataOutputStream wr = null;
+        try {
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Content-Length", "" + Integer.toString(requestJsonStr.length()));
+            connection.setUseCaches(false);
+            connection.setDoInput(true);
+            connection.setDoOutput(true);
+            connection.setFixedLengthStreamingMode(requestJsonStr.length());
+
+            //Send request
+            wr = new DataOutputStream(connection.getOutputStream());
+            wr.writeBytes(requestJsonStr);
+            wr.flush();
+        } catch (IOException e) {
+            Log.e(EmotionDetectionFragment.TAG, "Exception while sending request");
+            e.printStackTrace();
+        } finally {
+            if (wr != null) {
+                try {
+                    wr.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+
+    private String createRequestBody(Image image) {
+        try {
+            ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+            bytes = new byte[buffer.remaining()];
+            buffer.get(bytes);
+            image.close(); // close asap
+            image = null;
+            // Log.i(EmotionDetectionFragment.TAG, "Start Base64.encode");
+            // request: bytes -> base64 encode -> UTF-8 decode
+            byte[] baseBuf = Base64.encode(bytes, Base64.DEFAULT);
+            String requestStr = null;
+                requestStr = new String(baseBuf, "UTF-8");
+            // Log.i(EmotionDetectionFragment.TAG, "Finished UTF-8 String");
+            JSONObject request = new JSONObject();
+            request.put("image",requestStr);
+            return request.toString();
+        } catch (JSONException | UnsupportedEncodingException e) {
+            Log.e(EmotionDetectionFragment.TAG, "Exception while creating request from image");
+            e.printStackTrace();
+        } finally {
+            if (image != null) {
+                image.close(); // close always
+            }
+        }
+        return null;
     }
 
     private void writeJpeg(byte[] bytes, int requestLen, String emotion) {
@@ -153,11 +198,18 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
         FileOutputStream output = null;
         try {
             File outDir = mTextView.getContext().getExternalFilesDir(null);
-            Log.i(EmotionDetectionFragment.TAG, "Output file path: " + outDir.getPath());
-            File mFile = new File(outDir, "p_"+ Integer.toString(mSerial.	getAndAdd(1)) + "_" + Integer.toString(requestLen) + "_" + emotion  + ".jpg");
+            if (mSerial.get() == 1) {
+                Log.i(EmotionDetectionFragment.TAG, "Output file path: " + outDir.getPath());
+                for(File file: outDir.listFiles())
+                    if (!file.isDirectory())
+                        file.delete();
+            }
+            File mFile = new File(outDir, "p_"+ Integer.toString(mSerial.getAndAdd(1)) + "_" +
+                        Integer.toString(requestLen) + "_" + emotion  + ".jpg");
             output = new FileOutputStream(mFile);
             output.write(bytes);
         } catch (IOException e) {
+            Log.e(EmotionDetectionFragment.TAG, "Exception while writing JPEG file");
             e.printStackTrace();
         } finally {
             if (null != output) {
@@ -171,6 +223,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
     }
 
     private static String parseJson(String respStr) {
+        // sample responses
         // {"result": {"face_expression": [{"expression": "fear", "confidence": "0.2736271023750305"}]}}
         // {"result": {"error": {"code": "5", "msg": "No face on the picture"}}}
         // {"result": {"error": {"code": "500", "msg": "Internal Error"}}}
@@ -184,13 +237,12 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
                 JSONArray exprJsonArray = resultJson.getJSONArray("face_expression");
                 JSONObject exprJson = exprJsonArray.getJSONObject(0);
                 retStr = exprJson.getString("expression");
-                Log.i(EmotionDetectionFragment.TAG, "Expression: " + retStr);
             } else if(resultJson.has("error")) {
                 JSONObject errorJson = resultJson.getJSONObject("error");
                 retStr = errorJson.getString("msg").substring(0, 10).toUpperCase();
-                Log.i(EmotionDetectionFragment.TAG, "Error: " + retStr);
             }
         } catch (JSONException e) {
+            Log.e(EmotionDetectionFragment.TAG, "Exception when parsing JSon response");
             e.printStackTrace();
         }
         return retStr;
@@ -200,11 +252,15 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
         NetworkInfo networkInfo = mConnMgr.getActiveNetworkInfo();
         if (networkInfo != null && networkInfo.isConnected()) {
             if (mWifiOnly) {
-                return  (networkInfo.getType()  == ConnectivityManager.TYPE_WIFI);
+                boolean isWifi = (networkInfo.getType()  == ConnectivityManager.TYPE_WIFI);
+                if (!isWifi) {
+                    Log.d(EmotionDetectionFragment.TAG, "There is no WIFI connection");
+                }
+                return isWifi;
             }
             return true;
         } else {
-            Log.e(EmotionDetectionFragment.TAG, "There is no Internet connection");
+            Log.d(EmotionDetectionFragment.TAG, "There is no Internet connection");
             return false;
         }
     }
