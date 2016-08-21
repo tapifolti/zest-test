@@ -4,7 +4,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center_vertical|center_horizontal"
-    android:background="@color/control_background">
+    android:background="@color/control_background"
+    android:keepScreenOn="true" >
 
     <com.tapifolti.emotiondetection.AutoFitTextureView
         android:id="@+id/texture"

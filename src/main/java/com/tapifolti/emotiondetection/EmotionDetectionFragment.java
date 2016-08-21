@@ -39,6 +39,7 @@ import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v13.app.FragmentCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.widget.LinearLayoutCompat;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -73,6 +74,12 @@ public class EmotionDetectionFragment extends Fragment
         ORIENTATIONS.append(Surface.ROTATION_180, 270);
         ORIENTATIONS.append(Surface.ROTATION_270, 180);
     }
+
+    /**
+     * onResume() sets it to true
+     * onPause() sets it to false
+     */
+    boolean mAppIsresumed = false;
 
     /**
      * Tag for the {@link Log}.
@@ -124,7 +131,9 @@ public class EmotionDetectionFragment extends Fragment
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture texture, int width, int height) {
             Log.i(TAG, "onSurfaceTextureAvailable(...) called");
-            openCamera(width, height);
+            if (mAppIsresumed) {
+                openCamera(width, height);
+            } // else opPause was just called after onResume
         }
 
         @Override
@@ -182,7 +191,16 @@ public class EmotionDetectionFragment extends Fragment
     private final CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
 
         @Override
+        public void onClosed(CameraDevice camera) {
+            Log.i(TAG, "CameraDevice onClosed()");
+            // Called when the camera successfully closed ??
+            mCameraOpenCloseLock.release();
+            mCameraDevice = null;
+        }
+
+        @Override
         public void onOpened(@NonNull CameraDevice cameraDevice) {
+            Log.i(TAG, "CameraDevice onOpened()");
             // This method is called when the camera is opened.  We start camera preview here.
             mCameraOpenCloseLock.release();
             mCameraDevice = cameraDevice;
@@ -191,20 +209,24 @@ public class EmotionDetectionFragment extends Fragment
 
         @Override
         public void onDisconnected(@NonNull CameraDevice cameraDevice) {
-            mCameraOpenCloseLock.release();
+            Log.i(TAG, "CameraDevice onDisconnected()");
+            // can be called
+            // when a foreground running higher priority process takes over the camera -> onPause called first on this app
+            // when initialization is unsuccessful
+            // mCameraOpenCloseLock.release(); // ?? who locked it when ??
             cameraDevice.close();
-            mCameraDevice = null;
         }
 
         @Override
         public void onError(@NonNull CameraDevice cameraDevice, int error) {
-            mCameraOpenCloseLock.release();
+            Log.i(TAG, "CameraDevice onError()");
+            // mCameraOpenCloseLock.release();
             cameraDevice.close();
-            mCameraDevice = null;
             Log.e(TAG, "CameraDevice.StateCallback OnError(), error code: " + Integer.toString(error));
             Activity activity = getActivity();
             if (null != activity) {
-                activity.finish();
+                Log.i(TAG, "activity.finish() to be called");
+                activity.finish(); // TODO: does not work !!
             }
         }
 
@@ -266,7 +288,7 @@ public class EmotionDetectionFragment extends Fragment
     private int mState = STATE_PREVIEW;
 
     /**
-     * A {@link Semaphore} to prevent the app from exiting before closing the camera.
+     * A {@link Semaphore} to ensure camera open/ camera close execution is separated
      */
     private Semaphore mCameraOpenCloseLock = new Semaphore(1);
 
@@ -430,6 +452,7 @@ public class EmotionDetectionFragment extends Fragment
 
     @Override
     public void onResume() {
+        mAppIsresumed = true;
         super.onResume();
         startBackgroundThread();
 
@@ -450,6 +473,7 @@ public class EmotionDetectionFragment extends Fragment
     @Override
     public void onPause() {
         Log.i(TAG, "onPause() called");
+        mAppIsresumed = false;
         mUIHandler.removeCallbacks(takePictureTask);
         closeCamera();
         stopBackgroundThreads();
@@ -653,12 +677,12 @@ public class EmotionDetectionFragment extends Fragment
      */
     private void closeCamera() {
         try {
-            mCameraOpenCloseLock.acquire();
             if (null != mCaptureSession) {
                 mCaptureSession.close();
                 mCaptureSession = null;
             }
             if (null != mCameraDevice) {
+                mCameraOpenCloseLock.acquire();
                 mCameraDevice.close();
                 mCameraDevice = null;
             }
@@ -671,7 +695,7 @@ public class EmotionDetectionFragment extends Fragment
             ErrorDialog.newInstance(getString(R.string.camera_lockinterrupedclose))
                     .show(getChildFragmentManager(), FRAGMENT_DIALOG);
         } finally {
-            mCameraOpenCloseLock.release();
+            // moved to onCloseed() : mCameraOpenCloseLock.release();
         }
     }
 
