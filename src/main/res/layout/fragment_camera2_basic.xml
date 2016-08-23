@@ -7,6 +7,7 @@
     android:background="@color/control_background"
     android:keepScreenOn="true" >
 
+
     <com.tapifolti.emotiondetection.AutoFitTextureView
         android:id="@+id/texture"
         android:layout_width="match_parent"

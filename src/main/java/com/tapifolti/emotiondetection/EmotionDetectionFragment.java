@@ -39,7 +39,6 @@ import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v13.app.FragmentCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v7.widget.LinearLayoutCompat;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -79,7 +78,7 @@ public class EmotionDetectionFragment extends Fragment
      * onResume() sets it to true
      * onPause() sets it to false
      */
-    boolean mAppIsresumed = false;
+    boolean mAppIsResumed = false;
 
     /**
      * Tag for the {@link Log}.
@@ -131,9 +130,9 @@ public class EmotionDetectionFragment extends Fragment
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture texture, int width, int height) {
             Log.i(TAG, "onSurfaceTextureAvailable(...) called");
-            if (mAppIsresumed) {
+            if (mAppIsResumed) {
                 openCamera(width, height);
-            } // else opPause was just called after onResume
+            } // else onPause was just called after onResume which triggered this callback
         }
 
         @Override
@@ -193,8 +192,7 @@ public class EmotionDetectionFragment extends Fragment
         @Override
         public void onClosed(CameraDevice camera) {
             Log.i(TAG, "CameraDevice onClosed()");
-            // Called when the camera successfully closed ??
-            mCameraOpenCloseLock.release();
+            // Called when the camera successfully closed
             mCameraDevice = null;
         }
 
@@ -202,9 +200,9 @@ public class EmotionDetectionFragment extends Fragment
         public void onOpened(@NonNull CameraDevice cameraDevice) {
             Log.i(TAG, "CameraDevice onOpened()");
             // This method is called when the camera is opened.  We start camera preview here.
-            mCameraOpenCloseLock.release();
             mCameraDevice = cameraDevice;
             createCameraPreviewSession();
+            mCameraOpenCloseLock.release(); // release after preview initialized
         }
 
         @Override
@@ -213,20 +211,21 @@ public class EmotionDetectionFragment extends Fragment
             // can be called
             // when a foreground running higher priority process takes over the camera -> onPause called first on this app
             // when initialization is unsuccessful
-            // mCameraOpenCloseLock.release(); // ?? who locked it when ??
+            if (mCameraOpenCloseLock.availablePermits() > 0) {
+                mCameraOpenCloseLock.release(); // camera open may end up here
+            }
             cameraDevice.close();
         }
 
         @Override
         public void onError(@NonNull CameraDevice cameraDevice, int error) {
-            Log.i(TAG, "CameraDevice onError()");
-            // mCameraOpenCloseLock.release();
+            Log.e(TAG, "CameraDevice OnError(), error code: " + Integer.toString(error));
+            mCameraOpenCloseLock.release();
             cameraDevice.close();
-            Log.e(TAG, "CameraDevice.StateCallback OnError(), error code: " + Integer.toString(error));
             Activity activity = getActivity();
             if (null != activity) {
                 Log.i(TAG, "activity.finish() to be called");
-                activity.finish(); // TODO: does not work !!
+                activity.finish();
             }
         }
 
@@ -452,7 +451,7 @@ public class EmotionDetectionFragment extends Fragment
 
     @Override
     public void onResume() {
-        mAppIsresumed = true;
+        mAppIsResumed = true;
         super.onResume();
         startBackgroundThread();
 
@@ -467,13 +466,13 @@ public class EmotionDetectionFragment extends Fragment
             Log.i(TAG, "onResume() mTextureView.isAvailable() - FALSE");
             mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
         }
-        mUIHandler.postDelayed(takePictureTask, 2000);
+        mUIHandler.postDelayed(takePictureTask, 4000);
     }
 
     @Override
     public void onPause() {
         Log.i(TAG, "onPause() called");
-        mAppIsresumed = false;
+        mAppIsResumed = false;
         mUIHandler.removeCallbacks(takePictureTask);
         closeCamera();
         stopBackgroundThreads();
@@ -546,8 +545,15 @@ public class EmotionDetectionFragment extends Fragment
                 Size largest = Collections.max(
                         Arrays.asList(sizes), new CompareSizesByArea());
                 Collections.sort(Arrays.asList(sizes), new CompareSizesByArea());
-                Log.i(TAG, "Number of Image Sizes: " + Integer.toString(sizes.length));
-                Size smallest = /*(sizes.length > 1)? sizes[1]:*/ Collections.min(Arrays.asList(sizes), new CompareSizesByArea()); // bigger than the smallest
+                Log.i(TAG, "Number of image sizes: " + Integer.toString(sizes.length));
+                // Size smallest = /*(sizes.length > 1)? sizes[1]:*/ Collections.min(Arrays.asList(sizes), new CompareSizesByArea()); // bigger than the smallest
+                Log.i(TAG, "Smallest image size: " + Integer.toString(sizes[0].getWidth()) + "x" + Integer.toString(sizes[0].getHeight()) );
+                Size smallest = findGreaterOrEqualTo640x480(sizes);
+                Log.i(TAG, "Selected image size: " + Integer.toString(smallest.getWidth()) + "x" + Integer.toString(smallest.getHeight()) );
+
+                if (mImageReader != null) {
+                    mImageReader.close();
+                }
                 mImageReader = ImageReader.newInstance(smallest.getWidth(), smallest.getHeight(),
                         ImageFormat.JPEG, 2); // ImageFormat.YUV_420_888, /*maxImages*/2);
                 mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, mUIHandler);
@@ -639,6 +645,21 @@ public class EmotionDetectionFragment extends Fragment
         }
     }
 
+    private static Size findGreaterOrEqualTo640x480(Size [] sizes) {
+        if (sizes == null || sizes.length == 0) {
+            return null;
+        }
+        Collections.sort(Arrays.asList(sizes), new CompareSizesByArea());
+        for (Size ss: sizes) {
+            if (ss.getWidth() == 640 || ss.getWidth() == 480) {
+                return ss;
+            }
+            if (ss.getWidth()*ss.getHeight() >= 640*480) {
+                return ss;
+            }
+        }
+        return sizes[0]; // smallest
+    }
     /**
      * Opens the camera specified by {@link EmotionDetectionFragment#mCameraId}.
      */
@@ -650,16 +671,15 @@ public class EmotionDetectionFragment extends Fragment
             requestCameraPermission();
             return;
         }
-        setUpCameraOutputs(width, height);
-        configureTransform(width, height);
-        Activity activity = getActivity();
-        CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
+        CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
         try {
             if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
                 // throw new RuntimeException("Time out waiting to lock camera opening.");
                 ErrorDialog.newInstance(getString(R.string.camera_lockerror))
                         .show(getChildFragmentManager(), FRAGMENT_DIALOG);
             }
+            setUpCameraOutputs(width, height);
+            configureTransform(width, height);
             manager.openCamera(mCameraId, mStateCallback, mBackgroundPreviewHandler);
         } catch (CameraAccessException e) {
             Log.e(TAG, "CameraAccessException when openCamera(...)");
@@ -677,26 +697,25 @@ public class EmotionDetectionFragment extends Fragment
      */
     private void closeCamera() {
         try {
-            if (null != mCaptureSession) {
-                mCaptureSession.close();
-                mCaptureSession = null;
-            }
-            if (null != mCameraDevice) {
-                mCameraOpenCloseLock.acquire();
-                mCameraDevice.close();
-                mCameraDevice = null;
-            }
-            if (null != mImageReader) {
-                mImageReader.close();
-                mImageReader = null;
-            }
+            mCameraOpenCloseLock.acquire();
         } catch (InterruptedException e) {
             // throw new RuntimeException("Interrupted while trying to lock camera closing.", e);
             ErrorDialog.newInstance(getString(R.string.camera_lockinterrupedclose))
                     .show(getChildFragmentManager(), FRAGMENT_DIALOG);
-        } finally {
-            // moved to onCloseed() : mCameraOpenCloseLock.release();
         }
+        if (null != mCaptureSession) {
+            mCaptureSession.close();
+            mCaptureSession = null;
+        }
+        if (null != mImageReader) {
+            mImageReader.close();
+            mImageReader = null;
+        }
+        if (null != mCameraDevice) {
+            mCameraDevice.close();
+            mCameraDevice = null;
+        }
+        mCameraOpenCloseLock.release();
     }
 
     /**
@@ -762,6 +781,9 @@ public class EmotionDetectionFragment extends Fragment
                             }
 
                             // When the session is ready, we start displaying the preview.
+                            if (mCaptureSession != null) {
+                                mCaptureSession.close();
+                            }
                             mCaptureSession = cameraCaptureSession;
                             try {
                                 // Auto focus should be continuous for camera preview.
@@ -785,7 +807,8 @@ public class EmotionDetectionFragment extends Fragment
                         }
                     }, null
             );
-        } catch (CameraAccessException e) {
+        }
+        catch (CameraAccessException e) {
             Log.e(TAG, "CameraAccessException when createCameraPreviewSession(...)");
             e.printStackTrace();
         }
@@ -829,7 +852,7 @@ public class EmotionDetectionFragment extends Fragment
      */
     private void takePicture() {
         lockFocus();
-        mUIHandler.postDelayed(takePictureTask, 2000); // take picture ramdomly in a few sec
+        mUIHandler.postDelayed(takePictureTask, 4000); // take picture ramdomly in a few sec
     }
 
     /**
