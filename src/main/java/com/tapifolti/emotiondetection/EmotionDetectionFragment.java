@@ -466,7 +466,7 @@ public class EmotionDetectionFragment extends Fragment
             Log.i(TAG, "onResume() mTextureView.isAvailable() - FALSE");
             mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
         }
-        mUIHandler.postDelayed(takePictureTask, 4000);
+        mUIHandler.postDelayed(takePictureTask, 2000);
     }
 
     @Override
@@ -474,17 +474,16 @@ public class EmotionDetectionFragment extends Fragment
         Log.i(TAG, "onPause() called");
         mAppIsResumed = false;
         mUIHandler.removeCallbacks(takePictureTask);
-        closeCamera();
         stopBackgroundThreads();
+        closeCamera();
         super.onPause();
     }
 
     private void requestCameraPermission() {
-        if (FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA) ||
-                FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.INTERNET)) {
+        if (FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA) ) {
             new ConfirmationDialog().show(getChildFragmentManager(), FRAGMENT_DIALOG);
         } else {
-            FragmentCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA, Manifest.permission.INTERNET},
+            FragmentCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA},
                     REQUEST_APP_PERMISSION);
         }
     }
@@ -493,8 +492,7 @@ public class EmotionDetectionFragment extends Fragment
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         if (requestCode == REQUEST_APP_PERMISSION) {
-            if (grantResults.length != 2 || grantResults[0] != PackageManager.PERMISSION_GRANTED
-                    || grantResults[1] != PackageManager.PERMISSION_GRANTED) {
+            if (grantResults.length != 1 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
                 ErrorDialog.newInstance(getString(R.string.request_permission))
                         .show(getChildFragmentManager(), FRAGMENT_DIALOG);
             }
@@ -665,9 +663,7 @@ public class EmotionDetectionFragment extends Fragment
      */
     private void openCamera(int width, int height) {
         if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED ||
-                ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.INTERNET)
-                        != PackageManager.PERMISSION_GRANTED) {
+                != PackageManager.PERMISSION_GRANTED) {
             requestCameraPermission();
             return;
         }
@@ -704,6 +700,12 @@ public class EmotionDetectionFragment extends Fragment
                     .show(getChildFragmentManager(), FRAGMENT_DIALOG);
         }
         if (null != mCaptureSession) {
+            try {
+                mCaptureSession.abortCaptures();
+            } catch (CameraAccessException e) {
+                Log.i(TAG, "CameraAccessException when onPause()");
+                e.printStackTrace();
+            }
             mCaptureSession.close();
             mCaptureSession = null;
         }
@@ -795,7 +797,7 @@ public class EmotionDetectionFragment extends Fragment
                                 mCaptureSession.setRepeatingRequest(mPreviewRequest,
                                         mCaptureCallback, mBackgroundPreviewHandler);
                             } catch (CameraAccessException e) {
-                                Log.e(TAG, "CameraAccessException when CameraCaptureSession.StateCallback(...)");
+                                Log.e(TAG, "CameraAccessException when CameraCaptureSession.onConfigured(...)");
                                 e.printStackTrace();
                             }
                         }
@@ -852,7 +854,7 @@ public class EmotionDetectionFragment extends Fragment
      */
     private void takePicture() {
         lockFocus();
-        mUIHandler.postDelayed(takePictureTask, 4000); // take picture ramdomly in a few sec
+        mUIHandler.postDelayed(takePictureTask, 2000); // take picture ramdomly in a few sec
     }
 
     /**
@@ -1030,7 +1032,7 @@ public class EmotionDetectionFragment extends Fragment
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
                             FragmentCompat.requestPermissions(parent,
-                                    new String[]{Manifest.permission.CAMERA, Manifest.permission.INTERNET},
+                                    new String[]{Manifest.permission.CAMERA},
                                     REQUEST_APP_PERMISSION);
                         }
                     })
