@@ -203,6 +203,7 @@ public class EmotionDetectionFragment extends Fragment
             mCameraDevice = cameraDevice;
             createCameraPreviewSession();
             mCameraOpenCloseLock.release(); // release after preview initialized
+            mUIHandler.postDelayed(takePictureTask, 2000);
         }
 
         @Override
@@ -453,7 +454,7 @@ public class EmotionDetectionFragment extends Fragment
     public void onResume() {
         mAppIsResumed = true;
         super.onResume();
-        startBackgroundThread();
+        startBackgroundThreads();
 
         // When the screen is turned off and turned back on, the SurfaceTexture is already
         // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
@@ -466,7 +467,6 @@ public class EmotionDetectionFragment extends Fragment
             Log.i(TAG, "onResume() mTextureView.isAvailable() - FALSE");
             mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
         }
-        mUIHandler.postDelayed(takePictureTask, 2000);
     }
 
     @Override
@@ -492,7 +492,7 @@ public class EmotionDetectionFragment extends Fragment
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
         if (requestCode == REQUEST_APP_PERMISSION) {
-            if (grantResults.length != 1 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+            if (grantResults == null || grantResults.length != 1 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
                 ErrorDialog.newInstance(getString(R.string.request_permission))
                         .show(getChildFragmentManager(), FRAGMENT_DIALOG);
             }
@@ -665,7 +665,7 @@ public class EmotionDetectionFragment extends Fragment
         if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
             requestCameraPermission();
-            return;
+            return; // onResume will be called if permission granted
         }
         CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
         try {
@@ -723,7 +723,7 @@ public class EmotionDetectionFragment extends Fragment
     /**
      * Starts a background thread and its {@link Handler}.
      */
-    private void startBackgroundThread() {
+    private void startBackgroundThreads() {
         mBackgroundPreviewThread = new HandlerThread("CameraBackground");
         mBackgroundPreviewThread.start();
         mBackgroundPreviewHandler = new Handler(mBackgroundPreviewThread.getLooper());
