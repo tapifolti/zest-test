@@ -108,7 +108,7 @@ public class EmotionDetectionFragment extends Fragment
     /**
      * Camera state: Picture was taken.
      */
-    private static final int STATE_PICTURE_TAKEN = 4;
+    // private static final int STATE_PICTURE_TAKEN = 4;
 
     /**
      * Max preview width that is guaranteed by Camera2 API
@@ -168,6 +168,8 @@ public class EmotionDetectionFragment extends Fragment
      * An {@link TextView} for emotion notification.
      */
     private TextView mTextView;
+    private TextView mPermText;
+
 
     /**
      * A {@link CameraCaptureSession } for camera preview.
@@ -254,6 +256,8 @@ public class EmotionDetectionFragment extends Fragment
      */
     private Handler mUIHandler;
 
+    private boolean mCanUseCamera = true;
+
     private ConnectivityManager mConnMgr;
 
     /**
@@ -320,8 +324,8 @@ public class EmotionDetectionFragment extends Fragment
                     // Log.i(TAG, "STATE_WAITING_LOCK afState:" + Integer.toString(afState));
                     if (afState == null || afState == 0) { // Tzs  added || afState == 0
                         // Log.i(TAG, "mCaptureCallback process(...) (afState == null || afState == 0) captureStillPicture()");
-                        mState = STATE_PICTURE_TAKEN; // TZs missing was added
-                        captureStillPicture();
+                        mState = STATE_PREVIEW; // STATE_PICTURE_TAKEN // TZs missing was added
+                        mBackgroundCaptureHandler.post(captureStillPictureTask);
                     } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState ||
                             CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == afState) {
                         // CONTROL_AE_STATE can be null on some devices
@@ -329,10 +333,10 @@ public class EmotionDetectionFragment extends Fragment
                         if (aeState == null ||
                                 aeState == CaptureResult.CONTROL_AE_STATE_CONVERGED) {
                             // Log.i(TAG, "mCaptureCallback process(...) (afState != null) captureStillPicture()");
-                            mState = STATE_PICTURE_TAKEN;
-                            captureStillPicture();
+                            mState = STATE_PREVIEW; // STATE_PICTURE_TAKEN;
+                            mBackgroundCaptureHandler.post(captureStillPictureTask);
                         } else {
-                            runPrecaptureSequence();
+                            mBackgroundCaptureHandler.post(runPrecaptureSequenceTask); // runPrecaptureSequence();
                         }
                     }
                     break;
@@ -354,8 +358,8 @@ public class EmotionDetectionFragment extends Fragment
                     Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
                     if (aeState == null || aeState != CaptureResult.CONTROL_AE_STATE_PRECAPTURE) {
                         // Log.i(TAG, "mCaptureCallback process(...) STATE_WAITING_NON_PRECAPTURE captureStillPicture()");
-                        mState = STATE_PICTURE_TAKEN;
-                        captureStillPicture();
+                        mState = STATE_PREVIEW; // STATE_PICTURE_TAKEN;
+                        mBackgroundCaptureHandler.post(captureStillPictureTask);
                     }
                     break;
                 }
@@ -435,6 +439,7 @@ public class EmotionDetectionFragment extends Fragment
     public void onViewCreated(final View view, Bundle savedInstanceState) {
         mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
         mTextView = (TextView)view.findViewById(R.id.emoResult);
+        mPermText = (TextView)view.findViewById(R.id.permisson);
     }
 
     @Override
@@ -452,31 +457,40 @@ public class EmotionDetectionFragment extends Fragment
 
     @Override
     public void onResume() {
-        mAppIsResumed = true;
+        Log.i(TAG, "onResume() called");
         super.onResume();
-        startBackgroundThreads();
-
-        // When the screen is turned off and turned back on, the SurfaceTexture is already
-        // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
-        // a camera and start preview from here (otherwise, we wait until the surface is ready in
-        // the SurfaceTextureListener).
-        if (mTextureView.isAvailable()) {
-            Log.i(TAG, "onResume() mTextureView.isAvailable() - TRUE");
-            openCamera(mTextureView.getWidth(), mTextureView.getHeight());
+        mAppIsResumed = true;
+        if (!mCanUseCamera && ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED &&
+                !FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
+            mPermText.setVisibility(View.VISIBLE);
         } else {
-            Log.i(TAG, "onResume() mTextureView.isAvailable() - FALSE");
-            mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
+            mCanUseCamera = true;
+            mPermText.setVisibility(View.INVISIBLE);
+            startBackgroundThreads();
+
+            // When the screen is turned off and turned back on, the SurfaceTexture is already
+            // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
+            // a camera and start preview from here (otherwise, we wait until the surface is ready in
+            // the SurfaceTextureListener).
+            if (mTextureView.isAvailable()) {
+                Log.i(TAG, "onResume() mTextureView.isAvailable() - TRUE");
+                openCamera(mTextureView.getWidth(), mTextureView.getHeight());
+            } else {
+                Log.i(TAG, "onResume() mTextureView.isAvailable() - FALSE");
+                mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
+            }
         }
     }
 
     @Override
     public void onPause() {
         Log.i(TAG, "onPause() called");
+        super.onPause();
         mAppIsResumed = false;
         mUIHandler.removeCallbacks(takePictureTask);
         stopBackgroundThreads();
         closeCamera();
-        super.onPause();
     }
 
     private void requestCameraPermission() {
@@ -493,8 +507,11 @@ public class EmotionDetectionFragment extends Fragment
                                            @NonNull int[] grantResults) {
         if (requestCode == REQUEST_APP_PERMISSION) {
             if (grantResults == null || grantResults.length != 1 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-                ErrorDialog.newInstance(getString(R.string.request_permission))
-                        .show(getChildFragmentManager(), FRAGMENT_DIALOG);
+                Log.i(TAG, "onRequestPermissionsResult() permission denied");
+                mCanUseCamera = false;
+            } else {
+                Log.i(TAG, "onRequestPermissionsResult() permission granted");
+                mCanUseCamera = true;
             }
         } else {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -736,18 +753,27 @@ public class EmotionDetectionFragment extends Fragment
      * Stops the background thread and its {@link Handler}.
      */
     private void stopBackgroundThreads() {
-        mBackgroundPreviewThread.quitSafely();
-        mBackgroundCaptureThread.quitSafely();
-        try {
-            mBackgroundPreviewThread.join();
-            mBackgroundPreviewThread = null;
-            mBackgroundPreviewHandler = null;
-            mBackgroundCaptureThread.join();
-            mBackgroundCaptureThread = null;
-            mBackgroundCaptureHandler = null;
-        } catch (InterruptedException e) {
-            Log.e(TAG, "InterruptedException when stopBackgroundThreads(...)");
-            e.printStackTrace();
+        if (mBackgroundPreviewThread != null) {
+            mBackgroundPreviewThread.quitSafely();
+            try {
+                mBackgroundPreviewThread.join();
+                mBackgroundPreviewThread = null;
+                mBackgroundPreviewHandler = null;
+            } catch (InterruptedException e) {
+                Log.e(TAG, "InterruptedException when stopBackgroundThreads(...)");
+                e.printStackTrace();
+            }
+        }
+        if (mBackgroundCaptureThread != null) {
+            mBackgroundCaptureThread.quitSafely();
+            try {
+                mBackgroundCaptureThread.join();
+                mBackgroundCaptureThread = null;
+                mBackgroundCaptureHandler = null;
+            } catch (InterruptedException e) {
+                Log.e(TAG, "InterruptedException when stopBackgroundThreads(...)");
+                e.printStackTrace();
+            }
         }
     }
 
@@ -775,7 +801,18 @@ public class EmotionDetectionFragment extends Fragment
                     new CameraCaptureSession.StateCallback() {
 
                         @Override
+                        public void onActive(CameraCaptureSession session) {
+                            Log.i(TAG, "CameraCaptureSession onActive()");
+                        }
+
+                        @Override
+                        public void onSurfacePrepared(CameraCaptureSession session, Surface surface) {
+                            Log.i(TAG, "CameraCaptureSession onSurfacePrepared()");
+                        }
+
+                        @Override
                         public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                            Log.i(TAG, "CameraCaptureSession onConfigured()");
                             // The camera is already closed
                             if (null == mCameraDevice) {
                                 Log.i(TAG, "The camera is already closed");
@@ -794,8 +831,9 @@ public class EmotionDetectionFragment extends Fragment
 
                                 // Finally, we start displaying the camera preview.
                                 mPreviewRequest = mPreviewRequestBuilder.build();
+                                Log.i(TAG, "CameraCaptureSession onConfigured() setRepeatingRequest called");
                                 mCaptureSession.setRepeatingRequest(mPreviewRequest,
-                                        mCaptureCallback, mBackgroundPreviewHandler);
+                                        null, mBackgroundPreviewHandler);
                             } catch (CameraAccessException e) {
                                 Log.e(TAG, "CameraAccessException when CameraCaptureSession.onConfigured(...)");
                                 e.printStackTrace();
@@ -853,8 +891,9 @@ public class EmotionDetectionFragment extends Fragment
      * Initiate a still image capture.
      */
     private void takePicture() {
-        lockFocus();
-        mUIHandler.postDelayed(takePictureTask, 2000); // take picture ramdomly in a few sec
+        // lockFocus();
+        mBackgroundCaptureHandler.post(captureStillPictureTask);
+        mUIHandler.postDelayed(takePictureTask, 5000); // take picture ramdomly in a few sec
     }
 
     /**
@@ -880,6 +919,14 @@ public class EmotionDetectionFragment extends Fragment
      * Run the precapture sequence for capturing a still image. This method should be called when
      * we get a response in {@link #mCaptureCallback} from {@link #lockFocus()}.
      */
+
+    Runnable runPrecaptureSequenceTask = new Runnable() {
+        @Override
+        public void run() {
+            runPrecaptureSequence();
+        }};
+
+
     private void runPrecaptureSequence() {
         try {
             // This is how to tell the camera to trigger.
@@ -895,6 +942,12 @@ public class EmotionDetectionFragment extends Fragment
             e.printStackTrace();
         }
     }
+
+    Runnable captureStillPictureTask = new Runnable() {
+        @Override
+        public void run() {
+            captureStillPicture();
+        }};
 
     /**
      * Capture a still picture. This method should be called when we get a response in
@@ -919,7 +972,7 @@ public class EmotionDetectionFragment extends Fragment
             int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
             captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getOrientation(rotation));
 
-            CameraCaptureSession.CaptureCallback CaptureCallback
+            CameraCaptureSession.CaptureCallback captureCallback
                     = new CameraCaptureSession.CaptureCallback() {
 
                 @Override
@@ -927,11 +980,11 @@ public class EmotionDetectionFragment extends Fragment
                                                @NonNull CaptureRequest request,
                                                @NonNull TotalCaptureResult result) {
                     Log.i(TAG, "captureStillPicture() onCaptureCompleted()");
-                    unlockFocus();
+                    // unlockFocus();
                 }
             };
 
-            mCaptureSession.capture(captureBuilder.build(), CaptureCallback, mBackgroundCaptureHandler); // TZs it was null
+            mCaptureSession.capture(captureBuilder.build(), captureCallback, mBackgroundCaptureHandler); // TZs it was null
             Log.i(TAG, "captureStillPicture() capture(...) called");
         } catch (CameraAccessException e) {
             Log.e(TAG, "CameraAccessException when captureStillPicture(...)");
@@ -1036,16 +1089,16 @@ public class EmotionDetectionFragment extends Fragment
                                     REQUEST_APP_PERMISSION);
                         }
                     })
-                    .setNegativeButton(android.R.string.cancel,
-                            new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog, int which) {
-                                    Activity activity = parent.getActivity();
-                                    if (activity != null) {
-                                        activity.finish();
-                                    }
-                                }
-                            })
+//                    .setNegativeButton(android.R.string.cancel,
+//                            new DialogInterface.OnClickListener() {
+//                                @Override
+//                                public void onClick(DialogInterface dialog, int which) {
+//                                    Activity activity = parent.getActivity();
+//                                    if (activity != null) {
+//                                        activity.finish();
+//                                    }
+//                                }
+//                            })
                     .create();
         }
     }

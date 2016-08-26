@@ -63,9 +63,10 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             return retStr;
         }
         HttpURLConnection connection = null;
+        String requestJsonStr = "";
         try {
             // call emotion API
-            String requestJsonStr = createRequestBody(params[0]);
+            requestJsonStr = createRequestBody(params[0]);
             connection = (HttpURLConnection) new URL(mEmotionURL).openConnection();
             if (requestJsonStr != null && requestJsonStr.length() > 0) {
                 writeRequest(connection, requestJsonStr);
@@ -90,8 +91,6 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             Log.i(EmotionDetectionFragment.TAG, "JSon response: " + respStr);
             retStr = parseJson(respStr);
 
-            writeJpeg(bytes, requestJsonStr.length(), retStr);
-
             return retStr;
         } catch (IOException e) {
             Log.e(EmotionDetectionFragment.TAG, "Exception while calling emotion API");
@@ -101,6 +100,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             if (connection != null) {
                 connection.disconnect();
             }
+            writeJpeg(bytes, requestJsonStr.length(), retStr);
         }
 
         return retStr;

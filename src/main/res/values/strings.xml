@@ -16,7 +16,8 @@
 <resources>
     <string name="picture">Picture</string>
     <string name="description_info">Info</string>
-    <string name="request_permission">This application needs camera permission (to be able to send picture to remote service).</string>
+    <string name="denied_permission">This application needs camera permission (to be able to evaluate yor emotion).\nPlease navigate to: Phone Settings/Apps/ZestTest/Permissions and enable camera access.</string>
+    <string name="request_permission">This application needs camera permission (to be able to evaluate yor emotion). If you deny it the application cannot work.</string>
     <string name="camera_error">This device doesn\'t support Camera2 API.</string>
     <string name="camera_lockerror">Time out waiting to lock camera opening.</string>
     <string name="camera_lockinterruped">Interrupted while trying to lock camera opening.</string>
