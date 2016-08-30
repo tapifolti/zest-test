@@ -29,6 +29,7 @@ import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
+import android.hardware.camera2.params.InputConfiguration;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.ImageReader;
 import android.net.ConnectivityManager;
@@ -171,7 +172,7 @@ public class EmotionDetectionFragment extends Fragment
             Log.i(TAG, "CameraDevice onClosed()");
             // Called when the camera successfully closed
             mCameraDevice = null;
-            if (mCameraOpenCloseLock.availablePermits() > 0) {
+            if (mCameraOpenCloseLock.availablePermits() < 1) {
                 mCameraOpenCloseLock.release(); // camera open may end up here
             }
         }
@@ -191,7 +192,7 @@ public class EmotionDetectionFragment extends Fragment
             // can be called
             // when a foreground running higher priority process takes over the camera -> onPause called first on this app
             // when initialization is unsuccessful
-            if (mCameraOpenCloseLock.availablePermits() > 0) {
+            if (mCameraOpenCloseLock.availablePermits() < 1) {
                 mCameraOpenCloseLock.release(); // camera open may end up here
             }
             cameraDevice.close();
@@ -353,9 +354,6 @@ public class EmotionDetectionFragment extends Fragment
             mImageReader.close();
             mImageReader = null;
         }
-        if (mBackgroundCaptureHandler == null) {
-            Log.e(TAG, "mBackgroundCaptureHandler == null");
-        }
         stopBackgroundThreads();
     }
 
@@ -364,6 +362,20 @@ public class EmotionDetectionFragment extends Fragment
         public void run() {
             takePicture();
         }};
+
+    @Override
+    public void onConfigurationChanged (Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        Log.i(TAG, "onConfigurationChanged (...) called");
+        int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
+        Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getRotation() is: " + Integer.toString(displayRotation));
+        Point size = new Point();
+        getActivity().getWindowManager().getDefaultDisplay().getSize(size);
+        Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + Integer.toString(size.x) + ", " + Integer.toString(size.y));
+        int orient = getActivity().getResources().getConfiguration().orientation;
+        Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
+        // TODO implement resource update here to show config change
+    }
 
     @Override
     public void onResume() {
@@ -378,13 +390,18 @@ public class EmotionDetectionFragment extends Fragment
             mCanUseCamera = true;
             mPermText.setVisibility(View.INVISIBLE);
 
+            int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
+            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getRotation() is: " + Integer.toString(displayRotation));
+            Point size = new Point();
+            getActivity().getWindowManager().getDefaultDisplay().getSize(size);
+            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + Integer.toString(size.x) + ", " + Integer.toString(size.y));
+            int orient = getActivity().getResources().getConfiguration().orientation;
+            Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
+
             // When the screen is turned off and turned back on, the SurfaceTexture is already
             // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
             // a camera and start preview from here (otherwise, we wait until the surface is ready in
             // the SurfaceTextureListener).
-            if (mBackgroundCaptureHandler == null) {
-                Log.e(TAG, "mBackgroundCaptureHandler == null");
-            }
             if (mTextureView.isAvailable()) {
                 Log.i(TAG, "onResume() mTextureView.isAvailable() - TRUE");
                 openCamera(mTextureView.getWidth(), mTextureView.getHeight());
@@ -606,6 +623,7 @@ public class EmotionDetectionFragment extends Fragment
         try {
             if (!mCameraOpenCloseLock.tryAcquire(4000, TimeUnit.MILLISECONDS)) {
                 // throw new RuntimeException("Time out waiting to lock camera opening.");
+                Log.e(TAG, "openCamera() mCameraOpenCloseLock.tryAcquire(...) failed");
                 ErrorDialog.newInstance(getString(R.string.camera_lockerror))
                         .show(getChildFragmentManager(), FRAGMENT_DIALOG);
             }
@@ -629,10 +647,12 @@ public class EmotionDetectionFragment extends Fragment
      * Closes the current {@link CameraDevice}.
      */
     private void closeCamera() {
+        Log.i(TAG, "closeCamera() called");
         try {
             mCameraOpenCloseLock.acquire();
         } catch (InterruptedException e) {
             // throw new RuntimeException("Interrupted while trying to lock camera closing.", e);
+            Log.e(TAG, "closeCamera() InterruptedException");
             ErrorDialog.newInstance(getString(R.string.camera_lockinterrupedclose))
                     .show(getChildFragmentManager(), FRAGMENT_DIALOG);
         }
@@ -668,7 +688,7 @@ public class EmotionDetectionFragment extends Fragment
     }
 
     /**
-     * Stops the background thread and its {@link Handler}.
+     * Stops the background threads and its {@link Handler}.
      */
     private void stopBackgroundThreads() {
         if (mBackgroundPreviewThread != null) {
@@ -692,6 +712,9 @@ public class EmotionDetectionFragment extends Fragment
                 Log.e(TAG, "InterruptedException when stopBackgroundThreads(...)");
                 e.printStackTrace();
             }
+        }
+        if (mCameraOpenCloseLock.availablePermits() < 1) {
+            mCameraOpenCloseLock.release(); // the thread may died early
         }
     }
 
