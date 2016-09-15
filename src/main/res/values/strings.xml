@@ -22,5 +22,6 @@
     <string name="camera_lockerror">Time out waiting to lock camera opening.</string>
     <string name="camera_lockinterruped">Interrupted while trying to lock camera opening.</string>
     <string name="camera_lockinterrupedclose">Interrupted while trying to lock camera closing.</string>
+    <string name="apikey_error">API key not accessible on this device.</string>
     <string name="emoString">H\nA\nP\nP\nY</string>
 </resources>

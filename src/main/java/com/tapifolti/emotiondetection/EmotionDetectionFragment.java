@@ -15,6 +15,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.content.res.XmlResourceParser;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
@@ -50,6 +51,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import org.xmlpull.v1.XmlPullParserException;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -145,6 +149,7 @@ public class EmotionDetectionFragment extends Fragment
      */
     private TextView mTextView;
     private TextView mPermText;
+    private String mKeyCSEmotion;
 
 
     /**
@@ -183,7 +188,7 @@ public class EmotionDetectionFragment extends Fragment
             // This method is called when the camera is opened.  We start camera preview here.
             mCameraDevice = cameraDevice;
             createCameraPreviewSession();
-            mUIHandler.postDelayed(takePictureTask, 2000);
+            mUIHandler.postDelayed(takePictureTask, 4000);
         }
 
         @Override
@@ -247,7 +252,7 @@ public class EmotionDetectionFragment extends Fragment
 
         @Override
         public void onImageAvailable(ImageReader reader) {
-            new EmotionApiCallAsyncTask(mTextView, mConnMgr, false).execute(reader.acquireNextImage());
+            new CSEmotionCallAsyncTask(mTextView, mConnMgr, false, mKeyCSEmotion).execute(reader.acquireNextImage());
         }
 
     };
@@ -329,6 +334,16 @@ public class EmotionDetectionFragment extends Fragment
         mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
         mTextView = (TextView)view.findViewById(R.id.emoResult);
         mPermText = (TextView)view.findViewById(R.id.permisson);
+        XmlResourceParser parser = getActivity().getResources().getXml(R.xml.mscsvalue);
+        try {
+            mKeyCSEmotion = parser.nextText();
+        } catch (XmlPullParserException|IOException e) {
+            e.printStackTrace();
+            Log.e(TAG, "API key not accessible on this device");
+            ErrorDialog.newInstance(getString(R.string.apikey_error))
+                    .show(getChildFragmentManager(), FRAGMENT_DIALOG);
+
+        }
     }
 
     @Override
@@ -854,7 +869,7 @@ public class EmotionDetectionFragment extends Fragment
     private void takePicture() {
         // it can hit any time on the UI thread, even between onStart and onStop
         if (mBackgroundCaptureHandler != null) {
-            mUIHandler.postDelayed(takePictureTask, 2000); // TODO: take picture ramdomly in a few sec
+            mUIHandler.postDelayed(takePictureTask, 4000); // TODO: take picture ramdomly in a few sec
             mBackgroundCaptureHandler.post(captureStillPictureTask);
         }
     }
