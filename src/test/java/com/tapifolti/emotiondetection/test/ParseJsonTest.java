@@ -1,9 +1,18 @@
-package com.tapifolti.emotiondetection.tests;
+package com.tapifolti.emotiondetection.test;
 
+
+import android.util.Log;
+
+import com.tapifolti.emotiondetection.CSEmotionCallAsyncTask;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+
+import static junit.framework.Assert.assertTrue;
 
 public class ParseJsonTest {
 
-    private static final String sample = "[\n" +
+    private static final String sampleMulti = "[\n" +
             "{\n" +
             "\"faceRectangle\": {\n" +
             "\"left\": 89,\n" +
@@ -111,7 +120,62 @@ public class ParseJsonTest {
             "\"sadness\": 1.35564209e-8,\n" +
             "\"surprise\": 1.64349089e-7\n" +
             "}\n" +
+            "}\n"  + "]";
+
+    private static final String sampleSingle1 = "[\n" +
+            "{\n" +
+            "\"faceRectangle\": {\n" +
+            "\"left\": 89,\n" +
+            "\"top\": 120,\n" +
+            "\"width\": 71,\n" +
+            "\"height\": 71\n" +
+            "},\n" +
+            "\"scores\": {\n" +
+            "\"anger\": 3.44697156e-7,\n" +
+            "\"contempt\": 6.8442256e-7,\n" +
+            "\"disgust\": 0.00009313403,\n" +
+            "\"fear\": 2.90478118e-13,\n" +
+            "\"happiness\": 0.999748647,\n" +
+            "\"neutral\": 0.000157187445,\n" +
+            "\"sadness\": 4.30214253e-10,\n" +
+            "\"surprise\": 1.04141549e-8\n" +
             "}\n" +
-            "]";
+            "} " + "]";
+
+    private static final String sampleSingle2 = "[\n" +
+            "{\n" +
+            "\"faceRectangle\": {\n" +
+            "\"left\": 89,\n" +
+            "\"top\": 120,\n" +
+            "\"width\": 71,\n" +
+            "\"height\": 71\n" +
+            "},\n" +
+            "\"scores\": {\n" +
+            "\"anger\": 3.44697156e-7,\n" +
+            "\"contempt\": 6.8442256e-7,\n" +
+            "\"disgust\": 0.00009313403,\n" +
+            "\"fear\": 2.90478118e-13,\n" +
+            "\"happiness\": 0.0999748647,\n" +
+            "\"neutral\": 0.9157187445,\n" +
+            "\"sadness\": 4.30214253e-10,\n" +
+            "\"surprise\": 1.04141549e-8\n" +
+            "}\n" +
+            "} " + "]";
+
+    @Test
+    public void parseSingle() {
+
+        String res = CSEmotionCallAsyncTask.parseJson(sampleSingle1);
+        assertTrue(res.equals("happiness"));
+        res = CSEmotionCallAsyncTask.parseJson(sampleSingle2);
+        assertTrue(res.equals("neutral"));
+    }
+
+
+    @Test
+    public void parseMulti() {
+        String res = CSEmotionCallAsyncTask.parseJson(sampleMulti);
+        assertTrue(res.equals("NOT ONE FACE"));
+    }
 
 }

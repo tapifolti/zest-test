@@ -336,6 +336,8 @@ public class EmotionDetectionFragment extends Fragment
         mPermText = (TextView)view.findViewById(R.id.permisson);
         XmlResourceParser parser = getActivity().getResources().getXml(R.xml.mscsvalue);
         try {
+            parser.next();
+            parser.next();
             mKeyCSEmotion = parser.nextText();
         } catch (XmlPullParserException|IOException e) {
             e.printStackTrace();

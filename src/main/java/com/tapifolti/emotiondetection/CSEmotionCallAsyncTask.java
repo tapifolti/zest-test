@@ -204,7 +204,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
         }
     }
 
-    private static String parseJson(String respStr) {
+    public static String parseJson(String respStr) {
         // sample response
         //        [
         //        {
@@ -228,10 +228,8 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
         //        ]
         String retStr = "";
         Double retValue = 0.0;
-        JSONObject repJson = null;
         try {
-            repJson = new JSONObject(respStr);
-            JSONArray itemsArray = repJson.getJSONArray("");
+            JSONArray itemsArray = new JSONArray(respStr);
             if (itemsArray.length() != 1) {
                 return "NOT ONE FACE";
             }
