@@ -26,11 +26,8 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
-import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
-import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
-import android.hardware.camera2.params.InputConfiguration;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.ImageReader;
 import android.net.ConnectivityManager;
@@ -69,14 +66,11 @@ public class EmotionDetectionFragment extends Fragment
     private static final int REQUEST_APP_PERMISSION = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
 
-    /**
-     * Conversion from screen rotation to JPEG orientation.
-     */
     static {
-        ORIENTATIONS.append(Surface.ROTATION_0, 90);
-        ORIENTATIONS.append(Surface.ROTATION_90, 0);
-        ORIENTATIONS.append(Surface.ROTATION_180, 270);
-        ORIENTATIONS.append(Surface.ROTATION_270, 180);
+        ORIENTATIONS.append(Surface.ROTATION_0, 0);
+        ORIENTATIONS.append(Surface.ROTATION_90, 90);
+        ORIENTATIONS.append(Surface.ROTATION_180, 180);
+        ORIENTATIONS.append(Surface.ROTATION_270, 270);
     }
 
     /**
@@ -384,13 +378,15 @@ public class EmotionDetectionFragment extends Fragment
     public void onConfigurationChanged (Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         Log.i(TAG, "onConfigurationChanged (...) called");
-        int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
-        Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getRotation() is: " + Integer.toString(displayRotation));
-        Point size = new Point();
-        getActivity().getWindowManager().getDefaultDisplay().getSize(size);
-        Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + Integer.toString(size.x) + ", " + Integer.toString(size.y));
-        int orient = getActivity().getResources().getConfiguration().orientation;
-        Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
+        {   // TODO remove
+            int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
+            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getRotation() is: " + Integer.toString(displayRotation));
+            Point size = new Point();
+            getActivity().getWindowManager().getDefaultDisplay().getSize(size);
+            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + Integer.toString(size.x) + ", " + Integer.toString(size.y));
+            int orient = getActivity().getResources().getConfiguration().orientation;
+            Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
+        }
         // TODO implement resource update here to show config change
     }
 
@@ -407,13 +403,15 @@ public class EmotionDetectionFragment extends Fragment
             mCanUseCamera = true;
             mPermText.setVisibility(View.INVISIBLE);
 
-            int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
-            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getRotation() is: " + Integer.toString(displayRotation));
-            Point size = new Point();
-            getActivity().getWindowManager().getDefaultDisplay().getSize(size);
-            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + Integer.toString(size.x) + ", " + Integer.toString(size.y));
-            int orient = getActivity().getResources().getConfiguration().orientation;
-            Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
+            { // TODO remove
+                int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
+                Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getRotation() is: " + Integer.toString(displayRotation));
+                Point size = new Point();
+                getActivity().getWindowManager().getDefaultDisplay().getSize(size);
+                Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + Integer.toString(size.x) + ", " + Integer.toString(size.y));
+                int orient = getActivity().getResources().getConfiguration().orientation;
+                Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
+            }
 
             // When the screen is turned off and turned back on, the SurfaceTexture is already
             // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
@@ -483,7 +481,7 @@ public class EmotionDetectionFragment extends Fragment
                 int maxProc = characteristics.get(CameraCharacteristics.REQUEST_MAX_NUM_OUTPUT_PROC);
                 Log.i(TAG, "REQUEST_MAX_NUM_OUTPUT_PROC: " + Integer.toString(maxProc));
 
-                int mSensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
+                mSensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
                 Log.i(TAG, "SENSOR_ORIENTATION: " + Integer.toString(mSensorOrientation));
 
                 Boolean available = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
@@ -904,9 +902,9 @@ public class EmotionDetectionFragment extends Fragment
             captureBuilder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY);
             captureBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF);
 
-            // Orientation
+            // JPEG Orientation
             int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getOrientation(rotation));
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getImageOrientation(ORIENTATIONS.get(rotation))); // getOrientation(rotation));
 
             CameraCaptureSession.CaptureCallback captureCallback
                     = new CameraCaptureSession.CaptureCallback() {
@@ -942,13 +940,15 @@ public class EmotionDetectionFragment extends Fragment
      * @return The JPEG orientation (one of 0, 90, 270, and 360)
      */
     private int getOrientation(int rotation) {
-        // Sensor orientation is 90 for most devices, or 270 for some devices (eg. Nexus 5X)
-        // We have to take that into account and rotate JPEG properly.
-        // For devices with orientation of 90, we simply return our mapping from ORIENTATIONS.
-        // For devices with orientation of 270, we need to rotate the JPEG 180 degrees.
         return (ORIENTATIONS.get(rotation) + mSensorOrientation + 270) % 360;
     }
 
+    private int getImageOrientation(int displayRotation) {
+        int ret = mSensorOrientation - ((360 - displayRotation) % 360);
+        Log.i(TAG, "mSensorOrientation:" + Integer.toString(mSensorOrientation)+
+        " displayRotation:" + Integer.toString(displayRotation) + " ImageOrientation:" + Integer.toString(ret));
+        return ret;
+    }
     /**
      * Compares two {@code Size}s based on their areas.
      */

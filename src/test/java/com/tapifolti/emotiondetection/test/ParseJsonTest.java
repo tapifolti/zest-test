@@ -1,12 +1,9 @@
 package com.tapifolti.emotiondetection.test;
 
-
-import android.util.Log;
-
 import com.tapifolti.emotiondetection.CSEmotionCallAsyncTask;
 
 import org.junit.Test;
-import org.junit.runner.RunWith;
+
 
 import static junit.framework.Assert.assertTrue;
 

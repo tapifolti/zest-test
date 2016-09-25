@@ -35,6 +35,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
 
     private static final String mEmotionURL = "https://api.projectoxford.ai/emotion/v1.0/recognize";
     private static AtomicInteger mSerial = new AtomicInteger(1);
+    private static boolean doCall = false; // TODO remove it
 
     private TextView mTextView;
     private ConnectivityManager mConnMgr;
@@ -74,26 +75,29 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
             params[0].close(); // close asap
             params[0] = null;
 
-            connection = (HttpURLConnection) new URL(mEmotionURL).openConnection();
-            if (requestJPEG.length > 0) {
-                writeRequest(connection, requestJPEG);
+            String respStr = "[]";
+            if (doCall) {
+                connection = (HttpURLConnection) new URL(mEmotionURL).openConnection();
+                if (requestJPEG.length > 0) {
+                    writeRequest(connection, requestJPEG);
+                }
+
+                connection.connect();
+
+                int httpCode = connection.getResponseCode();
+                String httpMsg = connection.getResponseMessage();
+
+                Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + Integer.toString(httpCode) + ") " + httpMsg);
+
+                if (httpCode != HttpURLConnection.HTTP_OK) {
+                    retStr = "API ERROR";
+                    return retStr;
+                }
+
+                respStr = readResponse(connection);
+                connection.disconnect();
+                connection = null;
             }
-
-            connection.connect();
-
-            int httpCode = connection.getResponseCode();
-            String httpMsg = connection.getResponseMessage();
-
-            Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + Integer.toString(httpCode) + ") " + httpMsg);
-
-            if (httpCode != HttpURLConnection.HTTP_OK) {
-                retStr = "API ERROR";
-                return retStr;
-            }
-
-            String respStr = readResponse(connection);
-            connection.disconnect();
-            connection = null;
 
             Log.i(EmotionDetectionFragment.TAG, "JSon response: " + respStr);
             retStr = parseJson(respStr);
