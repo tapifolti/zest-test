@@ -46,6 +46,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import org.xmlpull.v1.XmlPullParserException;
@@ -112,7 +113,8 @@ public class EmotionDetectionFragment extends Fragment
         @Override
         public void onSurfaceTextureSizeChanged(SurfaceTexture texture, int width, int height) {
             Log.i(TAG, "onSurfaceTextureSizeChanged(...), Width, Height: " + Integer.toString(width) + ", " + Integer.toString(height));
-            configureTransform(width, height);
+            setUpCameraOrientation(width, height);
+            // ?? configureTransform(width, height);
         }
 
         @Override
@@ -156,10 +158,10 @@ public class EmotionDetectionFragment extends Fragment
      */
     private CameraDevice mCameraDevice;
 
-    /**
-     * The {@link android.util.Size} of camera preview.
-     */
-    private Size mPreviewSize;
+//    /**
+//     * The {@link android.util.Size} of camera preview.
+//     */
+//    private Size mPreviewSize;
 
     /**
      * {@link CameraDevice.StateCallback} is called when {@link CameraDevice} changes its state.
@@ -387,6 +389,8 @@ public class EmotionDetectionFragment extends Fragment
             int orient = getActivity().getResources().getConfiguration().orientation;
             Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
         }
+
+        Log.i(TAG, "mTextureView width, height: " + Integer.toString(mTextureView.getWidth()) + "," + Integer.toString(mTextureView.getHeight()));
         // TODO implement resource update here to show config change
     }
 
@@ -497,7 +501,7 @@ public class EmotionDetectionFragment extends Fragment
                 Log.i(TAG, "Scene modes:" + Arrays.toString(scenes));
 
                 int[] noiseRed =  characteristics.get(CameraCharacteristics.NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES);
-                Log.i(TAG, "Noise reduction modes:" + Arrays.toString(scenes));
+                Log.i(TAG, "Noise reduction modes:" + Arrays.toString(noiseRed));
 
                 StreamConfigurationMap map = characteristics.get(
                         CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
@@ -541,74 +545,68 @@ public class EmotionDetectionFragment extends Fragment
         }
     }
 
-    /**
-     * Sets up member variables related to camera.
-     *
-     * @param width  The width of available size for camera preview
-     * @param height The height of available size for camera preview
-     */
-    private void setUpCameraOrientation(int width, int height) {
-        // Find out if we need to swap dimension to get the preview size relative to sensor
-        // coordinate.
-        int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
-        //noinspection ConstantConditions
-        boolean swappedDimensions = false;
-        switch (displayRotation) {
-            case Surface.ROTATION_0:
-            case Surface.ROTATION_180:
-                if (mSensorOrientation == 90 || mSensorOrientation == 270) {
-                    swappedDimensions = true;
-                }
-                break;
-            case Surface.ROTATION_90:
-            case Surface.ROTATION_270:
-                if (mSensorOrientation == 0 || mSensorOrientation == 180) {
-                    swappedDimensions = true;
-                }
-                break;
-            default:
-                Log.e(TAG, "Display rotation is invalid: " + displayRotation);
-        }
-
-        Point displaySize = new Point();
-        getActivity().getWindowManager().getDefaultDisplay().getSize(displaySize);
-        int rotatedPreviewWidth = width;
-        int rotatedPreviewHeight = height;
-        int maxPreviewWidth = displaySize.x;
-        int maxPreviewHeight = displaySize.y;
-
-        if (swappedDimensions) {
-            rotatedPreviewWidth = height;
-            rotatedPreviewHeight = width;
-            maxPreviewWidth = displaySize.y;
-            maxPreviewHeight = displaySize.x;
-        }
-
-        if (maxPreviewWidth > MAX_PREVIEW_WIDTH) {
-            maxPreviewWidth = MAX_PREVIEW_WIDTH;
-        }
-
-        if (maxPreviewHeight > MAX_PREVIEW_HEIGHT) {
-            maxPreviewHeight = MAX_PREVIEW_HEIGHT;
-        }
-
-        // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
-        // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
-        // garbage capture data.
-        mPreviewSize = chooseOptimalSize(mSizesSurface,
-                rotatedPreviewWidth, rotatedPreviewHeight, maxPreviewWidth,
-                maxPreviewHeight, new Size(mImageReader.getWidth(), mImageReader.getHeight()));
-
-        // We fit the aspect ratio of TextureView to the size of preview we picked.
-        int orientation = getResources().getConfiguration().orientation;
-        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            mTextureView.setAspectRatio(
-                    mPreviewSize.getWidth(), mPreviewSize.getHeight());
-        } else {
-            mTextureView.setAspectRatio(
-                    mPreviewSize.getHeight(), mPreviewSize.getWidth());
-        }
-    }
+//    private void setUpCameraOrientationOriginal(int width, int height) {
+//        // Find out if we need to swap dimension to get the preview size relative to sensor
+//        // coordinate.
+//        int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
+//        //noinspection ConstantConditions
+//        boolean swappedDimensions = false;
+//        switch (displayRotation) {
+//            case Surface.ROTATION_0:
+//            case Surface.ROTATION_180:
+//                if (mSensorOrientation == 90 || mSensorOrientation == 270) {
+//                    swappedDimensions = true;
+//                }
+//                break;
+//            case Surface.ROTATION_90:
+//            case Surface.ROTATION_270:
+//                if (mSensorOrientation == 0 || mSensorOrientation == 180) {
+//                    swappedDimensions = true;
+//                }
+//                break;
+//            default:
+//                Log.e(TAG, "Display rotation is invalid: " + displayRotation);
+//        }
+//
+//        Point displaySize = new Point();
+//        getActivity().getWindowManager().getDefaultDisplay().getSize(displaySize);
+//        int rotatedPreviewWidth = width;
+//        int rotatedPreviewHeight = height;
+//        int maxPreviewWidth = displaySize.x;
+//        int maxPreviewHeight = displaySize.y;
+//
+//        if (swappedDimensions) {
+//            rotatedPreviewWidth = height;
+//            rotatedPreviewHeight = width;
+//            maxPreviewWidth = displaySize.y;
+//            maxPreviewHeight = displaySize.x;
+//        }
+//
+//        if (maxPreviewWidth > MAX_PREVIEW_WIDTH) {
+//            maxPreviewWidth = MAX_PREVIEW_WIDTH;
+//        }
+//
+//        if (maxPreviewHeight > MAX_PREVIEW_HEIGHT) {
+//            maxPreviewHeight = MAX_PREVIEW_HEIGHT;
+//        }
+//
+//        // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
+//        // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
+//        // garbage capture data.
+//        mPreviewSize = chooseOptimalSize(mSizesSurface,
+//                rotatedPreviewWidth, rotatedPreviewHeight, maxPreviewWidth,
+//                maxPreviewHeight, new Size(mImageReader.getWidth(), mImageReader.getHeight()));
+//
+//        // We fit the aspect ratio of TextureView to the size of preview we picked.
+//        int orientation = getResources().getConfiguration().orientation;
+//        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+//            mTextureView.setAspectRatio(
+//                    mPreviewSize.getWidth(), mPreviewSize.getHeight());
+//        } else {
+//            mTextureView.setAspectRatio(
+//                    mPreviewSize.getHeight(), mPreviewSize.getWidth());
+//        }
+//    }
 
     private static Size findGreaterOrEqualTo640x480(Size [] sizes) {
         if (sizes == null || sizes.length == 0) {
@@ -643,7 +641,7 @@ public class EmotionDetectionFragment extends Fragment
                         .show(getChildFragmentManager(), FRAGMENT_DIALOG);
             }
             setUpCameraOrientation(width, height);
-            configureTransform(width, height);
+            // ?? configureTransform(width, height);
             manager.openCamera(mCameraId, mStateCallback, mBackgroundPreviewHandler);
             Log.i(TAG, "manager.openCamera(...) called");
         } catch (CameraAccessException e) {
@@ -741,7 +739,7 @@ public class EmotionDetectionFragment extends Fragment
             SurfaceTexture texture = mTextureView.getSurfaceTexture();
 
             // We configure the size of default buffer to be the size of camera preview we want.
-            texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+            // ?? texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
 
             // This is the output Surface we need to start preview.
             Surface surface = new Surface(texture);
@@ -830,38 +828,49 @@ public class EmotionDetectionFragment extends Fragment
         }
     }
 
-    /**
-     * Configures the necessary {@link android.graphics.Matrix} transformation to `mTextureView`.
-     * This method should be called after the camera preview size is determined
-     * and also the size of `mTextureView` is fixed.
-     *
-     * @param viewWidth  The width of `mTextureView`
-     * @param viewHeight The height of `mTextureView`
-     */
-    private void configureTransform(int viewWidth, int viewHeight) {
-        Activity activity = getActivity();
-        if (null == mTextureView || null == mPreviewSize || null == activity) {
-            return;
-        }
-        int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
-        Matrix matrix = new Matrix();
-        RectF viewRect = new RectF(0, 0, viewWidth, viewHeight);
-        RectF bufferRect = new RectF(0, 0, mPreviewSize.getHeight(), mPreviewSize.getWidth());
-        float centerX = viewRect.centerX();
-        float centerY = viewRect.centerY();
-        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
-            bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
-            matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
-            float scale = Math.max(
-                    (float) viewHeight / mPreviewSize.getHeight(),
-                    (float) viewWidth / mPreviewSize.getWidth());
-            matrix.postScale(scale, scale, centerX, centerY);
-            matrix.postRotate(90 * (rotation - 2), centerX, centerY);
-        } else if (Surface.ROTATION_180 == rotation) {
-            matrix.postRotate(180, centerX, centerY);
-        }
-        mTextureView.setTransform(matrix);
+    private void setUpCameraOrientation(int width, int height) {
+        // mTextureView.setAspectRatio(1, 1);
+
+//        MAX_PREVIEW_WIDTH
+//        MAX_PREVIEW_HEIGHT
+//        // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
+//        // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
+//        // garbage capture data.
     }
+
+
+//    /**
+//     * Configures the necessary {@link android.graphics.Matrix} transformation to `mTextureView`.
+//     * This method should be called after the camera preview size is determined
+//     * and also the size of `mTextureView` is fixed.
+//     *
+//     * @param viewWidth  The width of `mTextureView`
+//     * @param viewHeight The height of `mTextureView`
+//     */
+//    private void configureTransform(int viewWidth, int viewHeight) {
+//        Activity activity = getActivity();
+//        if (null == mTextureView || null == mPreviewSize || null == activity) {
+//            return;
+//        }
+//        int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+//        Matrix matrix = new Matrix();
+//        RectF viewRect = new RectF(0, 0, viewWidth, viewHeight);
+//        RectF bufferRect = new RectF(0, 0, mPreviewSize.getHeight(), mPreviewSize.getWidth());
+//        float centerX = viewRect.centerX();
+//        float centerY = viewRect.centerY();
+//        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
+//            bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
+//            matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
+//            float scale = Math.max(
+//                    (float) viewHeight / mPreviewSize.getHeight(),
+//                    (float) viewWidth / mPreviewSize.getWidth());
+//            matrix.postScale(scale, scale, centerX, centerY);
+//            matrix.postRotate(90 * (rotation - 2), centerX, centerY);
+//        } else if (Surface.ROTATION_180 == rotation) {
+//            matrix.postRotate(180, centerX, centerY);
+//        }
+//        mTextureView.setTransform(matrix);
+//    }
 
     /**
      * Initiate a still image capture.
@@ -931,16 +940,6 @@ public class EmotionDetectionFragment extends Fragment
             Log.e(TAG, e.getMessage() + "Exception when captureStillPicture(...)");
             e.printStackTrace();
         }
-    }
-
-    /**
-     * Retrieves the JPEG orientation from the specified screen rotation.
-     *
-     * @param rotation The screen rotation.
-     * @return The JPEG orientation (one of 0, 90, 270, and 360)
-     */
-    private int getOrientation(int rotation) {
-        return (ORIENTATIONS.get(rotation) + mSensorOrientation + 270) % 360;
     }
 
     private int getImageOrientation(int displayRotation) {

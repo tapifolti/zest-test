@@ -81,13 +81,14 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
                 if (requestJPEG.length > 0) {
                     writeRequest(connection, requestJPEG);
                 }
-
+                long beforeConnectTime = System.currentTimeMillis();
                 connection.connect();
 
                 int httpCode = connection.getResponseCode();
                 String httpMsg = connection.getResponseMessage();
 
-                Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + Integer.toString(httpCode) + ") " + httpMsg);
+                long afterConnectTime = System.currentTimeMillis();
+                Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + Integer.toString(httpCode) + ") " + httpMsg + " [Took for: " + Long.toString(afterConnectTime-beforeConnectTime) + "msec]");
 
                 if (httpCode != HttpURLConnection.HTTP_OK) {
                     retStr = "API ERROR";

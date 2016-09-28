@@ -61,7 +61,6 @@
             android:elegantTextHeight="true"
             android:gravity="center"
             android:inputType="none"
-            android:letterSpacing="1"
             android:textSize="25sp" />
 
 

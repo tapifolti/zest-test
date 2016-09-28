@@ -11,11 +11,15 @@
     <com.tapifolti.emotiondetection.AutoFitTextureView
         android:id="@+id/texture"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:layout_above="@+id/control"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
         android:layout_centerInParent="true" />
+    <!--android:layout_alignParentLeft="true"-->
+    <!--android:layout_alignParentRight="true"-->
 
     <TextView
         android:layout_width="match_parent"
@@ -61,7 +65,6 @@
             android:elegantTextHeight="true"
             android:gravity="center"
             android:inputType="none"
-            android:letterSpacing="1"
             android:textSize="25sp"
             android:singleLine="true" />
 
