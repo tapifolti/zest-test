@@ -114,7 +114,6 @@ public class EmotionDetectionFragment extends Fragment
         public void onSurfaceTextureSizeChanged(SurfaceTexture texture, int width, int height) {
             Log.i(TAG, "onSurfaceTextureSizeChanged(...), Width, Height: " + Integer.toString(width) + ", " + Integer.toString(height));
             setUpCameraOrientation(width, height);
-            // ?? configureTransform(width, height);
         }
 
         @Override
@@ -139,6 +138,8 @@ public class EmotionDetectionFragment extends Fragment
      * An {@link AutoFitTextureView} for camera preview.
      */
     private AutoFitTextureView mTextureView;
+    private int mTextureViewWidth; // corrected
+    private int mTextureViewHeight; // corrected
 
     /**
      * An {@link TextView} for emotion notification.
@@ -157,11 +158,6 @@ public class EmotionDetectionFragment extends Fragment
      * A reference to the opened {@link CameraDevice}.
      */
     private CameraDevice mCameraDevice;
-
-//    /**
-//     * The {@link android.util.Size} of camera preview.
-//     */
-//    private Size mPreviewSize;
 
     /**
      * {@link CameraDevice.StateCallback} is called when {@link CameraDevice} changes its state.
@@ -263,57 +259,8 @@ public class EmotionDetectionFragment extends Fragment
      * Orientation of the camera sensor
      */
     private int mSensorOrientation;
-    private Size[] mSizesSurface;
+    private Size mPreviewSize;
 
-
-    /**
-     * Given {@code choices} of {@code Size}s supported by a camera, choose the smallest one that
-     * is at least as large as the respective texture view size, and that is at most as large as the
-     * respective max size, and whose aspect ratio matches with the specified value. If such size
-     * doesn't exist, choose the largest one that is at most as large as the respective max size,
-     * and whose aspect ratio matches with the specified value.
-     *
-     * @param choices           The list of sizes that the camera supports for the intended output
-     *                          class
-     * @param textureViewWidth  The width of the texture view relative to sensor coordinate
-     * @param textureViewHeight The height of the texture view relative to sensor coordinate
-     * @param maxWidth          The maximum width that can be chosen
-     * @param maxHeight         The maximum height that can be chosen
-     * @param aspectRatio       The aspect ratio
-     * @return The optimal {@code Size}, or an arbitrary one if none were big enough
-     */
-    private static Size chooseOptimalSize(Size[] choices, int textureViewWidth,
-            int textureViewHeight, int maxWidth, int maxHeight, Size aspectRatio) {
-
-        // Collect the supported resolutions that are at least as big as the preview Surface
-        List<Size> bigEnough = new ArrayList<>();
-        // Collect the supported resolutions that are smaller than the preview Surface
-        List<Size> notBigEnough = new ArrayList<>();
-        int w = aspectRatio.getWidth();
-        int h = aspectRatio.getHeight();
-        for (Size option : choices) {
-            if (option.getWidth() <= maxWidth && option.getHeight() <= maxHeight &&
-                    option.getHeight() == option.getWidth() * h / w) {
-                if (option.getWidth() >= textureViewWidth &&
-                    option.getHeight() >= textureViewHeight) {
-                    bigEnough.add(option);
-                } else {
-                    notBigEnough.add(option);
-                }
-            }
-        }
-
-        // Pick the smallest of those big enough. If there is no one big enough, pick the
-        // largest of those not big enough.
-        if (bigEnough.size() > 0) {
-            return Collections.min(bigEnough, new CompareSizesByArea());
-        } else if (notBigEnough.size() > 0) {
-            return Collections.max(notBigEnough, new CompareSizesByArea());
-        } else {
-            Log.e(TAG, "Couldn't find any suitable preview size");
-            return choices[0];
-        }
-    }
 
     public static EmotionDetectionFragment newInstance() {
         return new EmotionDetectionFragment();
@@ -376,6 +323,21 @@ public class EmotionDetectionFragment extends Fragment
             takePicture();
         }};
 
+    private void setTextureViewDims() {
+        Point size = new Point();
+        getActivity().getWindowManager().getDefaultDisplay().getSize(size);
+
+        if (size.x >= size.y) {
+            mTextureViewWidth = Math.max(mTextureView.getWidth(), mTextureView.getHeight());
+            mTextureViewHeight = Math.min(mTextureView.getWidth(), mTextureView.getHeight());
+        } else {
+            mTextureViewWidth = Math.min(mTextureView.getWidth(), mTextureView.getHeight());
+            mTextureViewHeight = Math.max(mTextureView.getWidth(), mTextureView.getHeight());
+
+        }
+        Log.i(TAG, "mTextureViewWidth: " + Integer.toString(mTextureViewWidth) + "  mTextureViewHeight: " + Integer.toString(mTextureViewHeight));
+    }
+
     @Override
     public void onConfigurationChanged (Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
@@ -388,9 +350,9 @@ public class EmotionDetectionFragment extends Fragment
             Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + Integer.toString(size.x) + ", " + Integer.toString(size.y));
             int orient = getActivity().getResources().getConfiguration().orientation;
             Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
+            Log.i(TAG, "mTextureView width, height: " + Integer.toString(mTextureView.getWidth()) + "," + Integer.toString(mTextureView.getHeight()));
         }
-
-        Log.i(TAG, "mTextureView width, height: " + Integer.toString(mTextureView.getWidth()) + "," + Integer.toString(mTextureView.getHeight()));
+        setTextureViewDims();
         // TODO implement resource update here to show config change
     }
 
@@ -415,7 +377,9 @@ public class EmotionDetectionFragment extends Fragment
                 Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + Integer.toString(size.x) + ", " + Integer.toString(size.y));
                 int orient = getActivity().getResources().getConfiguration().orientation;
                 Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
+                Log.i(TAG, "mTextureView width, height: " + Integer.toString(mTextureView.getWidth()) + "," + Integer.toString(mTextureView.getHeight()));
             }
+            setTextureViewDims();
 
             // When the screen is turned off and turned back on, the SurfaceTexture is already
             // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
@@ -423,7 +387,7 @@ public class EmotionDetectionFragment extends Fragment
             // the SurfaceTextureListener).
             if (mTextureView.isAvailable()) {
                 Log.i(TAG, "onResume() mTextureView.isAvailable() - TRUE");
-                openCamera(mTextureView.getWidth(), mTextureView.getHeight());
+                openCamera(mTextureViewWidth, mTextureViewHeight);
             } else {
                 Log.i(TAG, "onResume() mTextureView.isAvailable() - FALSE");
                 mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
@@ -530,7 +494,9 @@ public class EmotionDetectionFragment extends Fragment
                         ImageFormat.JPEG, 2); // ImageFormat.YUV_420_888, ImageFormat.JPEG, /*maxImages*/2);
                 mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, mUIHandler);
 
-                mSizesSurface = map.getOutputSizes(SurfaceTexture.class);
+                Size[] sizesSurface = map.getOutputSizes(SurfaceTexture.class);
+                mPreviewSize = chooseOptimalPreviewSize(sizesSurface);
+                Log.i(TAG, "Preview size: " + Integer.toString(mPreviewSize.getWidth()) + "x" + Integer.toString(mPreviewSize.getHeight()));
                 mCameraId = cameraId;
                 return;
             }
@@ -608,6 +574,55 @@ public class EmotionDetectionFragment extends Fragment
 //        }
 //    }
 
+//    /**
+//     * Given {@code choices} of {@code Size}s supported by a camera, choose the smallest one that
+//     * is at least as large as the respective texture view size, and that is at most as large as the
+//     * respective max size, and whose aspect ratio matches with the specified value. If such size
+//     * doesn't exist, choose the largest one that is at most as large as the respective max size,
+//     * and whose aspect ratio matches with the specified value.
+//     *
+//     * @param choices           The list of sizes that the camera supports for the intended output
+//     *                          class
+//     * @param textureViewWidth  The width of the texture view relative to sensor coordinate
+//     * @param textureViewHeight The height of the texture view relative to sensor coordinate
+//     * @param maxWidth          The maximum width that can be chosen
+//     * @param maxHeight         The maximum height that can be chosen
+//     * @param aspectRatio       The aspect ratio
+//     * @return The optimal {@code Size}, or an arbitrary one if none were big enough
+//     */
+//    private static Size chooseOptimalSize(Size[] choices, int textureViewWidth,
+//                                          int textureViewHeight, int maxWidth, int maxHeight, Size aspectRatio) {
+//
+//        // Collect the supported resolutions that are at least as big as the preview Surface
+//        List<Size> bigEnough = new ArrayList<>();
+//        // Collect the supported resolutions that are smaller than the preview Surface
+//        List<Size> notBigEnough = new ArrayList<>();
+//        int w = aspectRatio.getWidth();
+//        int h = aspectRatio.getHeight();
+//        for (Size option : choices) {
+//            if (option.getWidth() <= maxWidth && option.getHeight() <= maxHeight &&
+//                    option.getHeight() == option.getWidth() * h / w) {
+//                if (option.getWidth() >= textureViewWidth &&
+//                        option.getHeight() >= textureViewHeight) {
+//                    bigEnough.add(option);
+//                } else {
+//                    notBigEnough.add(option);
+//                }
+//            }
+//        }
+//
+//        // Pick the smallest of those big enough. If there is no one big enough, pick the
+//        // largest of those not big enough.
+//        if (bigEnough.size() > 0) {
+//            return Collections.min(bigEnough, new CompareSizesByArea());
+//        } else if (notBigEnough.size() > 0) {
+//            return Collections.max(notBigEnough, new CompareSizesByArea());
+//        } else {
+//            Log.e(TAG, "Couldn't find any suitable preview size");
+//            return choices[0];
+//        }
+//    }
+
     private static Size findGreaterOrEqualTo640x480(Size [] sizes) {
         if (sizes == null || sizes.length == 0) {
             return null;
@@ -623,6 +638,32 @@ public class EmotionDetectionFragment extends Fragment
         }
         return sizes[0]; // smallest
     }
+
+    private Size chooseOptimalPreviewSize(Size [] sizes) {
+        // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
+        // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
+        // garbage capture data.
+        // mTextureView not yet available
+        // chosen <= MAX
+        if (sizes == null || sizes.length == 0) {
+            return null;
+        }
+        Collections.sort(Arrays.asList(sizes), new CompareSizesByArea());
+        int maxW = Math.max(MAX_PREVIEW_WIDTH, MAX_PREVIEW_HEIGHT);
+        int maxH = Math.min(MAX_PREVIEW_WIDTH, MAX_PREVIEW_HEIGHT);
+
+        Size ret = null;
+        for (Size s : sizes) {
+            int w = Math.max(s.getWidth(), s.getHeight());
+            int h = Math.min(s.getWidth(), s.getHeight());
+
+            if (ret == null || (w <= maxW && h <= maxH)) {
+                ret = s;
+            }
+        }
+        return ret;
+    }
+
     /**
      * Opens the camera specified by {@link EmotionDetectionFragment#mCameraId}.
      */
@@ -641,7 +682,6 @@ public class EmotionDetectionFragment extends Fragment
                         .show(getChildFragmentManager(), FRAGMENT_DIALOG);
             }
             setUpCameraOrientation(width, height);
-            // ?? configureTransform(width, height);
             manager.openCamera(mCameraId, mStateCallback, mBackgroundPreviewHandler);
             Log.i(TAG, "manager.openCamera(...) called");
         } catch (CameraAccessException e) {
@@ -829,48 +869,37 @@ public class EmotionDetectionFragment extends Fragment
     }
 
     private void setUpCameraOrientation(int width, int height) {
-        // mTextureView.setAspectRatio(1, 1);
 
-//        MAX_PREVIEW_WIDTH
-//        MAX_PREVIEW_HEIGHT
-//        // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
-//        // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
-//        // garbage capture data.
+        Activity activity = getActivity();
+        if (null == mTextureView || null == mPreviewSize || null == activity) {
+            return;
+        }
+        // int width = Math.max(widthT, heightT);
+        // int height = Math.min(widthT, heightT);
+        int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+        Matrix matrix = new Matrix();
+        Size previewSize = null;
+        if (width >= height) {
+            previewSize = new Size(Math.max(mPreviewSize.getWidth(), mPreviewSize.getHeight()), Math.min(mPreviewSize.getWidth(), mPreviewSize.getHeight()));
+        } else {
+            previewSize = new Size(Math.min(mPreviewSize.getWidth(), mPreviewSize.getHeight()), Math.max(mPreviewSize.getWidth(), mPreviewSize.getHeight()));
+        }
+        RectF textureRect = new RectF(0, 0, width, height);
+        RectF previewRect = new RectF(0, 0, previewSize.getWidth(), previewSize.getHeight());
+        float centerX = textureRect.centerX();
+        float centerY = textureRect.centerY();
+        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
+            previewRect.offset(centerX - previewRect.centerX(), centerY - previewRect.centerY());
+            matrix.setRectToRect(textureRect, previewRect, Matrix.ScaleToFit.FILL);
+            float scaleX = (float) width / previewSize.getWidth();
+            float scaleY = (float) height / previewSize.getHeight();
+            matrix.postScale(scaleX, scaleY, centerX, centerY);
+            matrix.postRotate(90 * (rotation - 2), centerX, centerY);
+        } else if (Surface.ROTATION_180 == rotation) {
+            matrix.postRotate(180, centerX, centerY);
+        }
+        mTextureView.setTransform(matrix);
     }
-
-
-//    /**
-//     * Configures the necessary {@link android.graphics.Matrix} transformation to `mTextureView`.
-//     * This method should be called after the camera preview size is determined
-//     * and also the size of `mTextureView` is fixed.
-//     *
-//     * @param viewWidth  The width of `mTextureView`
-//     * @param viewHeight The height of `mTextureView`
-//     */
-//    private void configureTransform(int viewWidth, int viewHeight) {
-//        Activity activity = getActivity();
-//        if (null == mTextureView || null == mPreviewSize || null == activity) {
-//            return;
-//        }
-//        int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
-//        Matrix matrix = new Matrix();
-//        RectF viewRect = new RectF(0, 0, viewWidth, viewHeight);
-//        RectF bufferRect = new RectF(0, 0, mPreviewSize.getHeight(), mPreviewSize.getWidth());
-//        float centerX = viewRect.centerX();
-//        float centerY = viewRect.centerY();
-//        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
-//            bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
-//            matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
-//            float scale = Math.max(
-//                    (float) viewHeight / mPreviewSize.getHeight(),
-//                    (float) viewWidth / mPreviewSize.getWidth());
-//            matrix.postScale(scale, scale, centerX, centerY);
-//            matrix.postRotate(90 * (rotation - 2), centerX, centerY);
-//        } else if (Surface.ROTATION_180 == rotation) {
-//            matrix.postRotate(180, centerX, centerY);
-//        }
-//        mTextureView.setTransform(matrix);
-//    }
 
     /**
      * Initiate a still image capture.
