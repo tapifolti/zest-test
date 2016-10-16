@@ -249,8 +249,6 @@ public class EmotionDetectionFragment extends Fragment
             Log.i(TAG, "mTextureView width, height: " + mTextureView.getWidth() + "," + mTextureView.getHeight());
         }
 
-        mLastRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
-
         // it gives back orientation dependent dimension
         Point size = new Point();
         getActivity().getWindowManager().getDefaultDisplay().getSize(size);
@@ -802,7 +800,7 @@ public class EmotionDetectionFragment extends Fragment
                 setUpCameraOrientation(mTextureView.getWidth(), mTextureView.getHeight());
             }
         }};
-    // fast 180 degree flip cannot be detected with onConfigurationChanged()
+    // fast 180 degree flip cannot be detected with onSurfaceTextureSizeChanged() or
     private OrientationEventListener mOrientationListener;
 
     @Override
@@ -818,7 +816,7 @@ public class EmotionDetectionFragment extends Fragment
                 // fix fast 180 degree flip
                 if (rotation != mLastRotation) {
                     Log.i(TAG, "Orientation changed to: " + orientation + " degrees, lastRotation: " + mLastRotation + " currentRotation: " +rotation);
-                    // to avoid calling it if onConfigurationChanged() will be called too
+                    // to avoid calling it if onSurfaceTextureSizeChanged() will be called too
                     mUIHandler.postDelayed(setUpCameraOrientationTask, 100);
                 }
             }
