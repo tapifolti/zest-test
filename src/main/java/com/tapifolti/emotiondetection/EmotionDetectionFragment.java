@@ -1,8 +1,3 @@
-/*
- * Copyright 2016 Continuous Emotion Detection
- *
- */
-
 package com.tapifolti.emotiondetection;
 
 import android.Manifest;
@@ -46,6 +41,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
@@ -86,14 +82,10 @@ public class EmotionDetectionFragment extends Fragment
     public static final String TAG = "EmotionDetection";
 
     /**
-     * Max preview width that is guaranteed by Camera2 API
+     * Max preview size that is guaranteed by Camera2 API
      */
-    private static final int MAX_PREVIEW_WIDTH = 1920;
-
-    /**
-     * Max preview height that is guaranteed by Camera2 API
-     */
-    private static final int MAX_PREVIEW_HEIGHT = 1080;
+    private static int MAX_PREVIEW_WIDTH = 1920;
+    private static int MAX_PREVIEW_HEIGHT = 1080;
 
     /**
      * {@link TextureView.SurfaceTextureListener} handles several lifecycle events on a
@@ -113,6 +105,7 @@ public class EmotionDetectionFragment extends Fragment
         @Override
         public void onSurfaceTextureSizeChanged(SurfaceTexture texture, int width, int height) {
             Log.i(TAG, "onSurfaceTextureSizeChanged(...), Width, Height: " + Integer.toString(width) + ", " + Integer.toString(height));
+            Log.i(TAG, "mTextureView width, height: " + Integer.toString(mTextureView.getWidth()) + "," + Integer.toString(mTextureView.getHeight()));
             setUpCameraOrientation(width, height);
         }
 
@@ -129,34 +122,14 @@ public class EmotionDetectionFragment extends Fragment
 
     };
 
-    /**
-     * ID of the current {@link CameraDevice}.
-     */
     private String mCameraId;
-
-    /**
-     * An {@link AutoFitTextureView} for camera preview.
-     */
-    private AutoFitTextureView mTextureView;
-    private int mTextureViewWidth; // corrected
-    private int mTextureViewHeight; // corrected
-
-    /**
-     * An {@link TextView} for emotion notification.
-     */
+    private TextureView mTextureView;
     private TextView mTextView;
     private TextView mPermText;
     private String mKeyCSEmotion;
 
 
-    /**
-     * A {@link CameraCaptureSession } for camera preview.
-     */
     private CameraCaptureSession mCaptureSession;
-
-    /**
-     * A reference to the opened {@link CameraDevice}.
-     */
     private CameraDevice mCameraDevice;
 
     /**
@@ -167,7 +140,6 @@ public class EmotionDetectionFragment extends Fragment
         @Override
         public void onClosed(CameraDevice camera) {
             Log.i(TAG, "CameraDevice onClosed()");
-            // Called when the camera successfully closed
             mCameraDevice = null;
             if (mCameraOpenCloseLock.availablePermits() < 1) {
                 mCameraOpenCloseLock.release(); // camera open may end up here
@@ -177,7 +149,6 @@ public class EmotionDetectionFragment extends Fragment
         @Override
         public void onOpened(@NonNull CameraDevice cameraDevice) {
             Log.i(TAG, "CameraDevice onOpened()");
-            // This method is called when the camera is opened.  We start camera preview here.
             mCameraDevice = cameraDevice;
             createCameraPreviewSession();
             mUIHandler.postDelayed(takePictureTask, 4000);
@@ -209,15 +180,9 @@ public class EmotionDetectionFragment extends Fragment
 
     };
 
-    /**
-     * An additional thread for running tasks that shouldn't block the UI.
-     */
     private HandlerThread mBackgroundPreviewThread;
     private HandlerThread mBackgroundCaptureThread;
 
-    /**
-     * A {@link Handler} for running tasks in the background.
-     */
     private Handler mBackgroundPreviewHandler;
     private Handler mBackgroundCaptureHandler;
 
@@ -226,9 +191,6 @@ public class EmotionDetectionFragment extends Fragment
      */
     private ImageReader mImageReader;
 
-    /**
-     * the UI thread Handler
-     */
     private Handler mUIHandler;
 
     private boolean mCanUseCamera = true;
@@ -259,63 +221,13 @@ public class EmotionDetectionFragment extends Fragment
      * Orientation of the camera sensor
      */
     private int mSensorOrientation;
-    private Size mPreviewSize;
+    private Size mPreviewSize; // W > H always should be swapped as needed
 
 
     public static EmotionDetectionFragment newInstance() {
         return new EmotionDetectionFragment();
     }
 
-    @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_camera2_basic, container, false);
-    }
-
-    @Override
-    public void onViewCreated(final View view, Bundle savedInstanceState) {
-        mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
-        mTextView = (TextView)view.findViewById(R.id.emoResult);
-        mPermText = (TextView)view.findViewById(R.id.permisson);
-        XmlResourceParser parser = getActivity().getResources().getXml(R.xml.mscsvalue);
-        try {
-            parser.next();
-            parser.next();
-            mKeyCSEmotion = parser.nextText();
-        } catch (XmlPullParserException|IOException e) {
-            e.printStackTrace();
-            Log.e(TAG, "API key not accessible on this device");
-            ErrorDialog.newInstance(getString(R.string.apikey_error))
-                    .show(getChildFragmentManager(), FRAGMENT_DIALOG);
-
-        }
-    }
-
-    @Override
-    public void onActivityCreated(Bundle savedInstanceState) {
-        super.onActivityCreated(savedInstanceState);
-        Log.i(TAG, "onActivityCreated(...) called");
-        mUIHandler = new Handler(Looper.getMainLooper());
-        mConnMgr = (ConnectivityManager)getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
-    }
-    @Override
-    public void onStart() {
-        super.onStart();
-        Log.i(TAG, "onStart() called");
-        setUpCameraOutput();
-        startBackgroundThreads();
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        Log.i(TAG, "onStop() called");
-        if (null != mImageReader) {
-            mImageReader.close();
-            mImageReader = null;
-        }
-        stopBackgroundThreads();
-    }
 
     Runnable takePictureTask = new Runnable() {
         @Override
@@ -324,24 +236,6 @@ public class EmotionDetectionFragment extends Fragment
         }};
 
     private void setTextureViewDims() {
-        Point size = new Point();
-        getActivity().getWindowManager().getDefaultDisplay().getSize(size);
-
-        if (size.x >= size.y) {
-            mTextureViewWidth = Math.max(mTextureView.getWidth(), mTextureView.getHeight());
-            mTextureViewHeight = Math.min(mTextureView.getWidth(), mTextureView.getHeight());
-        } else {
-            mTextureViewWidth = Math.min(mTextureView.getWidth(), mTextureView.getHeight());
-            mTextureViewHeight = Math.max(mTextureView.getWidth(), mTextureView.getHeight());
-
-        }
-        Log.i(TAG, "mTextureViewWidth: " + Integer.toString(mTextureViewWidth) + "  mTextureViewHeight: " + Integer.toString(mTextureViewHeight));
-    }
-
-    @Override
-    public void onConfigurationChanged (Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-        Log.i(TAG, "onConfigurationChanged (...) called");
         {   // TODO remove
             int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
             Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getRotation() is: " + Integer.toString(displayRotation));
@@ -352,57 +246,27 @@ public class EmotionDetectionFragment extends Fragment
             Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
             Log.i(TAG, "mTextureView width, height: " + Integer.toString(mTextureView.getWidth()) + "," + Integer.toString(mTextureView.getHeight()));
         }
-        setTextureViewDims();
-        // TODO implement resource update here to show config change
-    }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        Log.i(TAG, "onResume() called");
-        mAppIsResumed = true;
-        if (!mCanUseCamera && ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED &&
-                !FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
-            mPermText.setVisibility(View.VISIBLE);
+        // it gives back orientation dependent dimension
+        Point size = new Point();
+        getActivity().getWindowManager().getDefaultDisplay().getSize(size);
+
+        if (size.x >= size.y) {
+            mPreviewSize = new Size(Math.max(mPreviewSize.getWidth(), mPreviewSize.getHeight()), Math.min(mPreviewSize.getWidth(), mPreviewSize.getHeight()));
         } else {
-            mCanUseCamera = true;
-            mPermText.setVisibility(View.INVISIBLE);
-
-            { // TODO remove
-                int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
-                Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getRotation() is: " + Integer.toString(displayRotation));
-                Point size = new Point();
-                getActivity().getWindowManager().getDefaultDisplay().getSize(size);
-                Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + Integer.toString(size.x) + ", " + Integer.toString(size.y));
-                int orient = getActivity().getResources().getConfiguration().orientation;
-                Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
-                Log.i(TAG, "mTextureView width, height: " + Integer.toString(mTextureView.getWidth()) + "," + Integer.toString(mTextureView.getHeight()));
-            }
-            setTextureViewDims();
-
-            // When the screen is turned off and turned back on, the SurfaceTexture is already
-            // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
-            // a camera and start preview from here (otherwise, we wait until the surface is ready in
-            // the SurfaceTextureListener).
-            if (mTextureView.isAvailable()) {
-                Log.i(TAG, "onResume() mTextureView.isAvailable() - TRUE");
-                openCamera(mTextureViewWidth, mTextureViewHeight);
-            } else {
-                Log.i(TAG, "onResume() mTextureView.isAvailable() - FALSE");
-                mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
-            }
+            mPreviewSize = new Size(Math.min(mPreviewSize.getWidth(), mPreviewSize.getHeight()), Math.max(mPreviewSize.getWidth(), mPreviewSize.getHeight()));
+        }
+        Log.i(TAG, "setTextureViewDims() mTextureView size set: " + Integer.toString(mPreviewSize.getWidth()) + " x " + Integer.toString(mPreviewSize.getHeight()));
+        RelativeLayout.LayoutParams relLayo = new RelativeLayout.LayoutParams(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+        relLayo.addRule(RelativeLayout.CENTER_IN_PARENT);
+        mTextureView.setLayoutParams(relLayo);
+        // TODO arrange text image as needed
+        // ViewGroup.LayoutParams textRelLayo = mTextView.getLayoutParams();
+        if (!isInLayout()) {
+            mTextureView.requestLayout();
         }
     }
 
-    @Override
-    public void onPause() {
-        super.onPause();
-        Log.i(TAG, "onPause() called");
-        mAppIsResumed = false;
-        mUIHandler.removeCallbacks(takePictureTask);
-        closeCamera();
-    }
 
     private void requestCameraPermission() {
         if (FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA) ) {
@@ -439,7 +303,6 @@ public class EmotionDetectionFragment extends Fragment
                 Integer hwLevel = characteristics.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
                 Log.i(TAG, "Hardware level: " + Integer.toString(hwLevel));
 
-                // We don't use a front facing camera in this sample.
                 Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if (facing == null || facing != CameraCharacteristics.LENS_FACING_FRONT) {
                     continue;
@@ -472,13 +335,11 @@ public class EmotionDetectionFragment extends Fragment
                 if (map == null) {
                     continue;
                 }
-                // Log.i(TAG, "Scaler Stream Configuration Map got");
 
                 int[] outputFormats = map.getOutputFormats();
                 Log.i(TAG, "Output Formats: " + Arrays.toString(outputFormats));
 
-                // For still image captures, we use the smallest available size.
-                Size[] sizesJpeg = map.getOutputSizes(ImageFormat.JPEG); // ImageFormat.YUV_420_888, ImageFormat.JPEG
+                Size[] sizesJpeg = map.getOutputSizes(ImageFormat.JPEG);
                 Size largest = Collections.max(
                         Arrays.asList(sizesJpeg), new CompareSizesByArea());
                 Collections.sort(Arrays.asList(sizesJpeg), new CompareSizesByArea());
@@ -491,18 +352,19 @@ public class EmotionDetectionFragment extends Fragment
                     mImageReader.close();
                 }
                 mImageReader = ImageReader.newInstance(smallest.getWidth(), smallest.getHeight(),
-                        ImageFormat.JPEG, 2); // ImageFormat.YUV_420_888, ImageFormat.JPEG, /*maxImages*/2);
+                        ImageFormat.JPEG, 2);
                 mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, mUIHandler);
 
                 Size[] sizesSurface = map.getOutputSizes(SurfaceTexture.class);
                 mPreviewSize = chooseOptimalPreviewSize(sizesSurface);
-                Log.i(TAG, "Preview size: " + Integer.toString(mPreviewSize.getWidth()) + "x" + Integer.toString(mPreviewSize.getHeight()));
+                Log.i(TAG, "Selected preview size: " + Integer.toString(mPreviewSize.getWidth()) + "x" + Integer.toString(mPreviewSize.getHeight()));
                 mCameraId = cameraId;
                 return;
             }
         } catch (CameraAccessException e) {
             Log.e(TAG, "CameraAccessException when setUpCameraOutputs(...)");
-            e.printStackTrace();
+            ErrorDialog.newInstance(getString(R.string.camera_cameraaccess))
+                    .show(getChildFragmentManager(), FRAGMENT_DIALOG);
         } catch (NullPointerException e) {
             // Currently an NPE is thrown when Camera2API not supported on the device
             Log.e(TAG, "NPE Camera2 API doesn't supported on this device");
@@ -510,118 +372,6 @@ public class EmotionDetectionFragment extends Fragment
                     .show(getChildFragmentManager(), FRAGMENT_DIALOG);
         }
     }
-
-//    private void setUpCameraOrientationOriginal(int width, int height) {
-//        // Find out if we need to swap dimension to get the preview size relative to sensor
-//        // coordinate.
-//        int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
-//        //noinspection ConstantConditions
-//        boolean swappedDimensions = false;
-//        switch (displayRotation) {
-//            case Surface.ROTATION_0:
-//            case Surface.ROTATION_180:
-//                if (mSensorOrientation == 90 || mSensorOrientation == 270) {
-//                    swappedDimensions = true;
-//                }
-//                break;
-//            case Surface.ROTATION_90:
-//            case Surface.ROTATION_270:
-//                if (mSensorOrientation == 0 || mSensorOrientation == 180) {
-//                    swappedDimensions = true;
-//                }
-//                break;
-//            default:
-//                Log.e(TAG, "Display rotation is invalid: " + displayRotation);
-//        }
-//
-//        Point displaySize = new Point();
-//        getActivity().getWindowManager().getDefaultDisplay().getSize(displaySize);
-//        int rotatedPreviewWidth = width;
-//        int rotatedPreviewHeight = height;
-//        int maxPreviewWidth = displaySize.x;
-//        int maxPreviewHeight = displaySize.y;
-//
-//        if (swappedDimensions) {
-//            rotatedPreviewWidth = height;
-//            rotatedPreviewHeight = width;
-//            maxPreviewWidth = displaySize.y;
-//            maxPreviewHeight = displaySize.x;
-//        }
-//
-//        if (maxPreviewWidth > MAX_PREVIEW_WIDTH) {
-//            maxPreviewWidth = MAX_PREVIEW_WIDTH;
-//        }
-//
-//        if (maxPreviewHeight > MAX_PREVIEW_HEIGHT) {
-//            maxPreviewHeight = MAX_PREVIEW_HEIGHT;
-//        }
-//
-//        // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
-//        // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
-//        // garbage capture data.
-//        mPreviewSize = chooseOptimalSize(mSizesSurface,
-//                rotatedPreviewWidth, rotatedPreviewHeight, maxPreviewWidth,
-//                maxPreviewHeight, new Size(mImageReader.getWidth(), mImageReader.getHeight()));
-//
-//        // We fit the aspect ratio of TextureView to the size of preview we picked.
-//        int orientation = getResources().getConfiguration().orientation;
-//        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-//            mTextureView.setAspectRatio(
-//                    mPreviewSize.getWidth(), mPreviewSize.getHeight());
-//        } else {
-//            mTextureView.setAspectRatio(
-//                    mPreviewSize.getHeight(), mPreviewSize.getWidth());
-//        }
-//    }
-
-//    /**
-//     * Given {@code choices} of {@code Size}s supported by a camera, choose the smallest one that
-//     * is at least as large as the respective texture view size, and that is at most as large as the
-//     * respective max size, and whose aspect ratio matches with the specified value. If such size
-//     * doesn't exist, choose the largest one that is at most as large as the respective max size,
-//     * and whose aspect ratio matches with the specified value.
-//     *
-//     * @param choices           The list of sizes that the camera supports for the intended output
-//     *                          class
-//     * @param textureViewWidth  The width of the texture view relative to sensor coordinate
-//     * @param textureViewHeight The height of the texture view relative to sensor coordinate
-//     * @param maxWidth          The maximum width that can be chosen
-//     * @param maxHeight         The maximum height that can be chosen
-//     * @param aspectRatio       The aspect ratio
-//     * @return The optimal {@code Size}, or an arbitrary one if none were big enough
-//     */
-//    private static Size chooseOptimalSize(Size[] choices, int textureViewWidth,
-//                                          int textureViewHeight, int maxWidth, int maxHeight, Size aspectRatio) {
-//
-//        // Collect the supported resolutions that are at least as big as the preview Surface
-//        List<Size> bigEnough = new ArrayList<>();
-//        // Collect the supported resolutions that are smaller than the preview Surface
-//        List<Size> notBigEnough = new ArrayList<>();
-//        int w = aspectRatio.getWidth();
-//        int h = aspectRatio.getHeight();
-//        for (Size option : choices) {
-//            if (option.getWidth() <= maxWidth && option.getHeight() <= maxHeight &&
-//                    option.getHeight() == option.getWidth() * h / w) {
-//                if (option.getWidth() >= textureViewWidth &&
-//                        option.getHeight() >= textureViewHeight) {
-//                    bigEnough.add(option);
-//                } else {
-//                    notBigEnough.add(option);
-//                }
-//            }
-//        }
-//
-//        // Pick the smallest of those big enough. If there is no one big enough, pick the
-//        // largest of those not big enough.
-//        if (bigEnough.size() > 0) {
-//            return Collections.min(bigEnough, new CompareSizesByArea());
-//        } else if (notBigEnough.size() > 0) {
-//            return Collections.max(notBigEnough, new CompareSizesByArea());
-//        } else {
-//            Log.e(TAG, "Couldn't find any suitable preview size");
-//            return choices[0];
-//        }
-//    }
 
     private static Size findGreaterOrEqualTo640x480(Size [] sizes) {
         if (sizes == null || sizes.length == 0) {
@@ -632,7 +382,7 @@ public class EmotionDetectionFragment extends Fragment
             if (ss.getWidth() == 640 || ss.getWidth() == 480) {
                 return ss;
             }
-            if (ss.getWidth()*ss.getHeight() >= 640*480) {
+            if ((long)ss.getWidth()*ss.getHeight() >= (long)640*480) {
                 return ss;
             }
         }
@@ -644,7 +394,7 @@ public class EmotionDetectionFragment extends Fragment
         // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
         // garbage capture data.
         // mTextureView not yet available
-        // chosen <= MAX
+        // chosen the biggest one and both dim <= MAX
         if (sizes == null || sizes.length == 0) {
             return null;
         }
@@ -654,10 +404,11 @@ public class EmotionDetectionFragment extends Fragment
 
         Size ret = null;
         for (Size s : sizes) {
+            // Log.i(TAG, "Preview size: " + Integer.toString(s.getWidth()) + "x" + Integer.toString(s.getHeight()));
             int w = Math.max(s.getWidth(), s.getHeight());
             int h = Math.min(s.getWidth(), s.getHeight());
 
-            if (ret == null || (w <= maxW && h <= maxH)) {
+            if (w <= maxW && h <= maxH) {
                 ret = s;
             }
         }
@@ -676,7 +427,6 @@ public class EmotionDetectionFragment extends Fragment
         CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
         try {
             if (!mCameraOpenCloseLock.tryAcquire(4000, TimeUnit.MILLISECONDS)) {
-                // throw new RuntimeException("Time out waiting to lock camera opening.");
                 Log.e(TAG, "openCamera() mCameraOpenCloseLock.tryAcquire(...) failed");
                 ErrorDialog.newInstance(getString(R.string.camera_lockerror))
                         .show(getChildFragmentManager(), FRAGMENT_DIALOG);
@@ -687,9 +437,10 @@ public class EmotionDetectionFragment extends Fragment
         } catch (CameraAccessException e) {
             mCameraOpenCloseLock.release();
             Log.e(TAG, "CameraAccessException when openCamera(...)");
-            e.printStackTrace();
+            ErrorDialog.newInstance(getString(R.string.camera_cameraaccess))
+                    .show(getChildFragmentManager(), FRAGMENT_DIALOG);
         } catch (InterruptedException e) {
-            // throw new RuntimeException("Interrupted while trying to lock camera opening.", e);
+            Log.e(TAG, "openCamera() InterruptedException");
             ErrorDialog.newInstance(getString(R.string.camera_lockinterruped))
                     .show(getChildFragmentManager(), FRAGMENT_DIALOG);
 
@@ -704,7 +455,6 @@ public class EmotionDetectionFragment extends Fragment
         try {
             mCameraOpenCloseLock.acquire();
         } catch (InterruptedException e) {
-            // throw new RuntimeException("Interrupted while trying to lock camera closing.", e);
             Log.e(TAG, "closeCamera() InterruptedException");
             ErrorDialog.newInstance(getString(R.string.camera_lockinterrupedclose))
                     .show(getChildFragmentManager(), FRAGMENT_DIALOG);
@@ -714,8 +464,9 @@ public class EmotionDetectionFragment extends Fragment
                 mCaptureSession.stopRepeating();
                 mCaptureSession.abortCaptures();
             } catch (CameraAccessException e) {
-                Log.i(TAG, "CameraAccessException when onPause()");
-                e.printStackTrace();
+                Log.e(TAG, "closeCamera() CameraAccessException");
+                ErrorDialog.newInstance(getString(R.string.camera_cameraaccess))
+                        .show(getChildFragmentManager(), FRAGMENT_DIALOG);
             }
             mCaptureSession.close();
             mCaptureSession = null;
@@ -778,17 +529,14 @@ public class EmotionDetectionFragment extends Fragment
         try {
             SurfaceTexture texture = mTextureView.getSurfaceTexture();
 
-            // We configure the size of default buffer to be the size of camera preview we want.
-            // ?? texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+            texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+            Log.i(TAG, "setDefaultBufferSize: " + Integer.toString(mPreviewSize.getWidth()) + " x " + Integer.toString(mPreviewSize.getHeight()));
 
-            // This is the output Surface we need to start preview.
             Surface surface = new Surface(texture);
 
-            // We set up a CaptureRequest.Builder with the output Surface.
             final CaptureRequest.Builder previewRequestBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             previewRequestBuilder.addTarget(surface);
 
-            // Here, we create a CameraCaptureSession for camera preview.
             mCameraDevice.createCaptureSession(Arrays.asList(surface, mImageReader.getSurface()),
                     new CameraCaptureSession.StateCallback() {
 
@@ -811,14 +559,11 @@ public class EmotionDetectionFragment extends Fragment
                                 return;
                             }
 
-                            // When the session is ready, we start displaying the preview.
                             if (mCaptureSession != null) {
                                 mCaptureSession.close();
                             }
                             mCaptureSession = cameraCaptureSession;
                             try {
-                                // Auto focus should be continuous for camera preview.
-                                // previewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
                                 previewRequestBuilder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_USE_SCENE_MODE);
                                 previewRequestBuilder.set(CaptureRequest.CONTROL_SCENE_MODE, CaptureRequest.CONTROL_SCENE_MODE_FACE_PRIORITY);
                                 previewRequestBuilder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO);
@@ -827,7 +572,6 @@ public class EmotionDetectionFragment extends Fragment
                                 previewRequestBuilder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_FAST);
                                 previewRequestBuilder.set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF);
 
-                                // Finally, we start displaying the camera preview.
                                 CaptureRequest previewRequest = previewRequestBuilder.build();
 
                                 // TODO only for testing purpose
@@ -848,8 +592,9 @@ public class EmotionDetectionFragment extends Fragment
                                 mCameraOpenCloseLock.release(); // release after preview initialized
                             } catch (CameraAccessException e) {
                                 Log.e(TAG, "CameraAccessException when CameraCaptureSession.onConfigured(...)");
-                                e.printStackTrace();
                                 mCameraOpenCloseLock.release();
+                                ErrorDialog.newInstance(getString(R.string.camera_cameraaccess))
+                                        .show(getChildFragmentManager(), FRAGMENT_DIALOG);
                             }
                         }
 
@@ -864,7 +609,8 @@ public class EmotionDetectionFragment extends Fragment
         }
         catch (CameraAccessException e) {
             Log.e(TAG, "CameraAccessException when createCameraPreviewSession(...)");
-            e.printStackTrace();
+            ErrorDialog.newInstance(getString(R.string.camera_cameraaccess))
+                    .show(getChildFragmentManager(), FRAGMENT_DIALOG);
         }
     }
 
@@ -874,36 +620,26 @@ public class EmotionDetectionFragment extends Fragment
         if (null == mTextureView || null == mPreviewSize || null == activity) {
             return;
         }
-        // int width = Math.max(widthT, heightT);
-        // int height = Math.min(widthT, heightT);
         int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
         Matrix matrix = new Matrix();
-        Size previewSize = null;
-        if (width >= height) {
-            previewSize = new Size(Math.max(mPreviewSize.getWidth(), mPreviewSize.getHeight()), Math.min(mPreviewSize.getWidth(), mPreviewSize.getHeight()));
-        } else {
-            previewSize = new Size(Math.min(mPreviewSize.getWidth(), mPreviewSize.getHeight()), Math.max(mPreviewSize.getWidth(), mPreviewSize.getHeight()));
-        }
+        Log.i(TAG,  "setUpCameraOrientation() params: " + Integer.toString(width) + "x" + Integer.toString(height) +
+                    "  mTextureView: " + Integer.toString(mTextureView.getWidth()) + "x" +Integer.toString(mTextureView.getHeight()) +
+                    "  Preview dim: " + Integer.toString(mPreviewSize.getWidth()) + "x" + Integer.toString(mPreviewSize.getHeight()));
+
         RectF textureRect = new RectF(0, 0, width, height);
-        RectF previewRect = new RectF(0, 0, previewSize.getWidth(), previewSize.getHeight());
         float centerX = textureRect.centerX();
         float centerY = textureRect.centerY();
         if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
-            previewRect.offset(centerX - previewRect.centerX(), centerY - previewRect.centerY());
-            matrix.setRectToRect(textureRect, previewRect, Matrix.ScaleToFit.FILL);
-            float scaleX = (float) width / previewSize.getWidth();
-            float scaleY = (float) height / previewSize.getHeight();
-            matrix.postScale(scaleX, scaleY, centerX, centerY);
-            matrix.postRotate(90 * (rotation - 2), centerX, centerY);
+             float scaleX = (float) height / mPreviewSize.getWidth();
+             float scaleY = (float) width / mPreviewSize.getHeight();
+             matrix.postScale(scaleX, scaleY, centerX, centerY);
+             matrix.postRotate(90 * (rotation - 2), centerX, centerY);
         } else if (Surface.ROTATION_180 == rotation) {
             matrix.postRotate(180, centerX, centerY);
         }
         mTextureView.setTransform(matrix);
     }
 
-    /**
-     * Initiate a still image capture.
-     */
     private void takePicture() {
         // it can hit any time on the UI thread, even between onStart and onStop
         if (mBackgroundCaptureHandler != null) {
@@ -925,13 +661,10 @@ public class EmotionDetectionFragment extends Fragment
             if (null == activity || null == mCameraDevice || mCaptureSession == null) {
                 return;
             }
-            // This is the CaptureRequest.Builder that we use to take a picture.
             CaptureRequest.Builder captureBuilder =
                     mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             captureBuilder.addTarget(mImageReader.getSurface());
 
-            // Use the same AE and AF modes as the preview.
-            // captureBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
             captureBuilder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_USE_SCENE_MODE);
             captureBuilder.set(CaptureRequest.CONTROL_SCENE_MODE, CaptureRequest.CONTROL_SCENE_MODE_FACE_PRIORITY);
             captureBuilder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO);
@@ -942,7 +675,7 @@ public class EmotionDetectionFragment extends Fragment
 
             // JPEG Orientation
             int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
-            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getImageOrientation(ORIENTATIONS.get(rotation))); // getOrientation(rotation));
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, getImageOrientation(ORIENTATIONS.get(rotation)));
 
             CameraCaptureSession.CaptureCallback captureCallback
                     = new CameraCaptureSession.CaptureCallback() {
@@ -973,8 +706,8 @@ public class EmotionDetectionFragment extends Fragment
 
     private int getImageOrientation(int displayRotation) {
         int ret = mSensorOrientation - ((360 - displayRotation) % 360);
-        Log.i(TAG, "mSensorOrientation:" + Integer.toString(mSensorOrientation)+
-        " displayRotation:" + Integer.toString(displayRotation) + " ImageOrientation:" + Integer.toString(ret));
+//        Log.i(TAG, "mSensorOrientation:" + Integer.toString(mSensorOrientation)+
+//        " displayRotation:" + Integer.toString(displayRotation) + " ImageOrientation:" + Integer.toString(ret));
         return ret;
     }
     /**
@@ -991,9 +724,6 @@ public class EmotionDetectionFragment extends Fragment
 
     }
 
-    /**
-     * Shows an error message dialog.
-     */
     public static class ErrorDialog extends DialogFragment {
 
         private static final String ARG_MESSAGE = "Error";
@@ -1019,12 +749,8 @@ public class EmotionDetectionFragment extends Fragment
                     })
                     .create();
         }
-
     }
 
-    /**
-     * Shows OK confirmation dialog about camera permission.
-     */
     public static class ConfirmationDialog extends DialogFragment {
 
         @Override
@@ -1044,4 +770,114 @@ public class EmotionDetectionFragment extends Fragment
         }
     }
 
+    private String getApiKey() {
+        XmlResourceParser parser = getActivity().getResources().getXml(R.xml.mscsvalue);
+        try {
+            parser.next();
+            parser.next();
+            return parser.nextText();
+        } catch (XmlPullParserException | IOException e) {
+            e.printStackTrace();
+            Log.e(TAG, "API key not accessible on this device");
+            ErrorDialog.newInstance(getString(R.string.apikey_error))
+                    .show(getChildFragmentManager(), FRAGMENT_DIALOG);
+
+        }
+        return "";
+    }
+
+    // onCreate() not overridden
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        Log.i(TAG, "onCreateView(...) called");
+        return inflater.inflate(R.layout.fragment_camera2_basic, container, false);
+    }
+
+    @Override
+    public void onViewCreated(final View view, Bundle savedInstanceState) {
+        Log.i(TAG, "onViewCreated(...) called");
+        mTextureView = (TextureView) view.findViewById(R.id.texture);
+        mTextView = (TextView)view.findViewById(R.id.emoResult);
+        mPermText = (TextView)view.findViewById(R.id.permisson);
+        mKeyCSEmotion = getApiKey();
+
+        Point size = new Point();
+        getActivity().getWindowManager().getDefaultDisplay().getSize(size);
+        MAX_PREVIEW_WIDTH = Math.min(1920, Math.max(size.x, size.y));
+        MAX_PREVIEW_HEIGHT = Math.min(1080, Math.min(size.x, size.y));
+    }
+
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+        Log.i(TAG, "onActivityCreated(...) called");
+        mUIHandler = new Handler(Looper.getMainLooper());
+        mConnMgr = (ConnectivityManager)getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
+    }
+    @Override
+    public void onStart() {
+        super.onStart();
+        Log.i(TAG, "onStart() called");
+        setUpCameraOutput();
+        startBackgroundThreads();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        Log.i(TAG, "onStop() called");
+        if (null != mImageReader) {
+            mImageReader.close();
+            mImageReader = null;
+        }
+        stopBackgroundThreads();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        Log.i(TAG, "onResume() called");
+        mAppIsResumed = true;
+        if (!mCanUseCamera && ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED &&
+                !FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
+            mPermText.setVisibility(View.VISIBLE);
+        } else {
+            mCanUseCamera = true;
+            mPermText.setVisibility(View.INVISIBLE);
+
+            setTextureViewDims();
+
+            // When the screen is turned off and turned back on, the SurfaceTexture is already
+            // available, and "onSurfaceTextureAvailable" will not be called. In that case, we can open
+            // a camera and start preview from here (otherwise, we wait until the surface is ready in
+            // the SurfaceTextureListener).
+            if (mTextureView.isAvailable()) {
+                Log.i(TAG, "onResume() mTextureView.isAvailable() - TRUE - mTextureView.width:" +
+                        Integer.toString(mTextureView.getWidth()) + ", mTextureView.height:" + Integer.toString(mTextureView.getHeight()));
+                openCamera(mTextureView.getWidth(), mTextureView.getHeight());
+            } else {
+                Log.i(TAG, "onResume() mTextureView.isAvailable() - FALSE");
+                mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
+            }
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        Log.i(TAG, "onPause() called");
+        mAppIsResumed = false;
+        mUIHandler.removeCallbacks(takePictureTask);
+        closeCamera();
+    }
+
+    @Override
+    public void onConfigurationChanged (Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        Log.i(TAG, "onConfigurationChanged (...) called");
+        setTextureViewDims();
+    }
 }
