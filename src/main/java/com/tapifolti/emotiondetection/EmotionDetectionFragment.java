@@ -16,6 +16,7 @@ import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
+import android.hardware.SensorManager;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -37,6 +38,7 @@ import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
 import android.view.LayoutInflater;
+import android.view.OrientationEventListener;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -104,8 +106,8 @@ public class EmotionDetectionFragment extends Fragment
 
         @Override
         public void onSurfaceTextureSizeChanged(SurfaceTexture texture, int width, int height) {
-            Log.i(TAG, "onSurfaceTextureSizeChanged(...), Width, Height: " + Integer.toString(width) + ", " + Integer.toString(height));
-            Log.i(TAG, "mTextureView width, height: " + Integer.toString(mTextureView.getWidth()) + "," + Integer.toString(mTextureView.getHeight()));
+            Log.i(TAG, "onSurfaceTextureSizeChanged(...), Width, Height: " + width + ", " + height);
+            Log.i(TAG, "mTextureView width, height: " + mTextureView.getWidth() + "," + mTextureView.getHeight());
             setUpCameraOrientation(width, height);
         }
 
@@ -168,7 +170,7 @@ public class EmotionDetectionFragment extends Fragment
 
         @Override
         public void onError(@NonNull CameraDevice cameraDevice, int error) {
-            Log.e(TAG, "CameraDevice OnError(), error code: " + Integer.toString(error));
+            Log.e(TAG, "CameraDevice OnError(), error code: " + error);
             mCameraOpenCloseLock.release();
             cameraDevice.close();
             Activity activity = getActivity();
@@ -238,14 +240,16 @@ public class EmotionDetectionFragment extends Fragment
     private void setTextureViewDims() {
         {   // TODO remove
             int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
-            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getRotation() is: " + Integer.toString(displayRotation));
+            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getRotation() is: " + displayRotation);
             Point size = new Point();
             getActivity().getWindowManager().getDefaultDisplay().getSize(size);
-            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + Integer.toString(size.x) + ", " + Integer.toString(size.y));
+            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + size.x + ", " + size.y);
             int orient = getActivity().getResources().getConfiguration().orientation;
-            Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + Integer.toString(orient));
-            Log.i(TAG, "mTextureView width, height: " + Integer.toString(mTextureView.getWidth()) + "," + Integer.toString(mTextureView.getHeight()));
+            Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + orient);
+            Log.i(TAG, "mTextureView width, height: " + mTextureView.getWidth() + "," + mTextureView.getHeight());
         }
+
+        mLastRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
 
         // it gives back orientation dependent dimension
         Point size = new Point();
@@ -256,11 +260,11 @@ public class EmotionDetectionFragment extends Fragment
         } else {
             mPreviewSize = new Size(Math.min(mPreviewSize.getWidth(), mPreviewSize.getHeight()), Math.max(mPreviewSize.getWidth(), mPreviewSize.getHeight()));
         }
-        Log.i(TAG, "setTextureViewDims() mTextureView size set: " + Integer.toString(mPreviewSize.getWidth()) + " x " + Integer.toString(mPreviewSize.getHeight()));
+        Log.i(TAG, "setTextureViewDims() mTextureView size set: " + mPreviewSize.getWidth() + " x " + mPreviewSize.getHeight() + " Rotation: " + mLastRotation);
         RelativeLayout.LayoutParams relLayo = new RelativeLayout.LayoutParams(mPreviewSize.getWidth(), mPreviewSize.getHeight());
         relLayo.addRule(RelativeLayout.CENTER_IN_PARENT);
         mTextureView.setLayoutParams(relLayo);
-        // TODO arrange text image as needed
+        // TODO arrange text and image as needed
         // ViewGroup.LayoutParams textRelLayo = mTextView.getLayoutParams();
         if (!isInLayout()) {
             mTextureView.requestLayout();
@@ -301,19 +305,19 @@ public class EmotionDetectionFragment extends Fragment
                         = manager.getCameraCharacteristics(cameraId);
 
                 Integer hwLevel = characteristics.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
-                Log.i(TAG, "Hardware level: " + Integer.toString(hwLevel));
+                Log.i(TAG, "Hardware level: " + hwLevel);
 
                 Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
                 if (facing == null || facing != CameraCharacteristics.LENS_FACING_FRONT) {
                     continue;
                 }
-                Log.i(TAG, "Lens facing: " + Integer.toString(facing));
+                Log.i(TAG, "Lens facing: " + facing);
 
                 int maxProc = characteristics.get(CameraCharacteristics.REQUEST_MAX_NUM_OUTPUT_PROC);
-                Log.i(TAG, "REQUEST_MAX_NUM_OUTPUT_PROC: " + Integer.toString(maxProc));
+                Log.i(TAG, "REQUEST_MAX_NUM_OUTPUT_PROC: " + maxProc);
 
                 mSensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
-                Log.i(TAG, "SENSOR_ORIENTATION: " + Integer.toString(mSensorOrientation));
+                Log.i(TAG, "SENSOR_ORIENTATION: " + mSensorOrientation);
 
                 Boolean available = characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
                 Log.i(TAG, "Flash available:" + Boolean.toString(available));
@@ -343,10 +347,10 @@ public class EmotionDetectionFragment extends Fragment
                 Size largest = Collections.max(
                         Arrays.asList(sizesJpeg), new CompareSizesByArea());
                 Collections.sort(Arrays.asList(sizesJpeg), new CompareSizesByArea());
-                Log.i(TAG, "Number of image sizes: " + Integer.toString(sizesJpeg.length));
-                Log.i(TAG, "Smallest image size: " + Integer.toString(sizesJpeg[0].getWidth()) + "x" + Integer.toString(sizesJpeg[0].getHeight()));
+                Log.i(TAG, "Number of image sizes: " + sizesJpeg.length);
+                Log.i(TAG, "Smallest image size: " + sizesJpeg[0].getWidth() + "x" + sizesJpeg[0].getHeight());
                 Size smallest = findGreaterOrEqualTo640x480(sizesJpeg);
-                Log.i(TAG, "Selected image size: " + Integer.toString(smallest.getWidth()) + "x" + Integer.toString(smallest.getHeight()));
+                Log.i(TAG, "Selected image size: " + smallest.getWidth() + "x" + smallest.getHeight());
 
                 if (mImageReader != null) {
                     mImageReader.close();
@@ -357,7 +361,7 @@ public class EmotionDetectionFragment extends Fragment
 
                 Size[] sizesSurface = map.getOutputSizes(SurfaceTexture.class);
                 mPreviewSize = chooseOptimalPreviewSize(sizesSurface);
-                Log.i(TAG, "Selected preview size: " + Integer.toString(mPreviewSize.getWidth()) + "x" + Integer.toString(mPreviewSize.getHeight()));
+                Log.i(TAG, "Selected preview size: " + mPreviewSize.getWidth() + "x" + mPreviewSize.getHeight());
                 mCameraId = cameraId;
                 return;
             }
@@ -404,7 +408,7 @@ public class EmotionDetectionFragment extends Fragment
 
         Size ret = null;
         for (Size s : sizes) {
-            // Log.i(TAG, "Preview size: " + Integer.toString(s.getWidth()) + "x" + Integer.toString(s.getHeight()));
+            // Log.i(TAG, "Preview size: " + s.getWidth() + "x" + s.getHeight());
             int w = Math.max(s.getWidth(), s.getHeight());
             int h = Math.min(s.getWidth(), s.getHeight());
 
@@ -530,7 +534,7 @@ public class EmotionDetectionFragment extends Fragment
             SurfaceTexture texture = mTextureView.getSurfaceTexture();
 
             texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
-            Log.i(TAG, "setDefaultBufferSize: " + Integer.toString(mPreviewSize.getWidth()) + " x " + Integer.toString(mPreviewSize.getHeight()));
+            Log.i(TAG, "setDefaultBufferSize: " + mPreviewSize.getWidth() + " x " + mPreviewSize.getHeight());
 
             Surface surface = new Surface(texture);
 
@@ -614,27 +618,30 @@ public class EmotionDetectionFragment extends Fragment
         }
     }
 
+    private int mLastRotation = 0;
+
     private void setUpCameraOrientation(int width, int height) {
 
         Activity activity = getActivity();
         if (null == mTextureView || null == mPreviewSize || null == activity) {
             return;
         }
-        int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+        mLastRotation = activity.getWindowManager().getDefaultDisplay().getRotation();
         Matrix matrix = new Matrix();
-        Log.i(TAG,  "setUpCameraOrientation() params: " + Integer.toString(width) + "x" + Integer.toString(height) +
-                    "  mTextureView: " + Integer.toString(mTextureView.getWidth()) + "x" +Integer.toString(mTextureView.getHeight()) +
-                    "  Preview dim: " + Integer.toString(mPreviewSize.getWidth()) + "x" + Integer.toString(mPreviewSize.getHeight()));
+        Log.i(TAG,  "setUpCameraOrientation() params: " + width + "x" + height +
+                    "  mTextureView: " + mTextureView.getWidth() + "x" + mTextureView.getHeight() +
+                    "  Preview dim: " + mPreviewSize.getWidth() + "x" + mPreviewSize.getHeight() +
+                    "  Rotation: " + mLastRotation);
 
         RectF textureRect = new RectF(0, 0, width, height);
         float centerX = textureRect.centerX();
         float centerY = textureRect.centerY();
-        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
+        if (Surface.ROTATION_90 == mLastRotation || Surface.ROTATION_270 == mLastRotation) {
              float scaleX = (float) height / mPreviewSize.getWidth();
              float scaleY = (float) width / mPreviewSize.getHeight();
              matrix.postScale(scaleX, scaleY, centerX, centerY);
-             matrix.postRotate(90 * (rotation - 2), centerX, centerY);
-        } else if (Surface.ROTATION_180 == rotation) {
+             matrix.postRotate(90 * (mLastRotation - 2), centerX, centerY);
+        } else if (Surface.ROTATION_180 == mLastRotation) {
             matrix.postRotate(180, centerX, centerY);
         }
         mTextureView.setTransform(matrix);
@@ -706,8 +713,8 @@ public class EmotionDetectionFragment extends Fragment
 
     private int getImageOrientation(int displayRotation) {
         int ret = mSensorOrientation - ((360 - displayRotation) % 360);
-//        Log.i(TAG, "mSensorOrientation:" + Integer.toString(mSensorOrientation)+
-//        " displayRotation:" + Integer.toString(displayRotation) + " ImageOrientation:" + Integer.toString(ret));
+//        Log.i(TAG, "mSensorOrientation:" + mSensorOrientation+
+//        " displayRotation:" + displayRotation + " ImageOrientation:" + ret);
         return ret;
     }
     /**
@@ -786,7 +793,50 @@ public class EmotionDetectionFragment extends Fragment
         return "";
     }
 
-    // onCreate() not overridden
+    // TODO make 180 degree flip fix simpler and faster
+    Runnable setUpCameraOrientationTask = new Runnable() {
+        @Override
+        public void run() {
+            int rotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
+            if (rotation != mLastRotation) {
+                setUpCameraOrientation(mTextureView.getWidth(), mTextureView.getHeight());
+            }
+        }};
+    // fast 180 degree flip cannot be detected with onConfigurationChanged()
+    private OrientationEventListener mOrientationListener;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        mOrientationListener = new OrientationEventListener(getActivity().getBaseContext(),
+                SensorManager.SENSOR_DELAY_NORMAL) {
+
+            @Override
+            public void onOrientationChanged(int orientation) {
+                int rotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
+                // fix fast 180 degree flip
+                if (rotation != mLastRotation) {
+                    Log.i(TAG, "Orientation changed to: " + orientation + " degrees, lastRotation: " + mLastRotation + " currentRotation: " +rotation);
+                    // to avoid calling it if onConfigurationChanged() will be called too
+                    mUIHandler.postDelayed(setUpCameraOrientationTask, 100);
+                }
+            }
+        };
+
+        if (mOrientationListener.canDetectOrientation()) {
+            mOrientationListener.enable();
+        } else {
+            mOrientationListener.disable();
+        }
+
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mOrientationListener.disable();
+    }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -856,7 +906,7 @@ public class EmotionDetectionFragment extends Fragment
             // the SurfaceTextureListener).
             if (mTextureView.isAvailable()) {
                 Log.i(TAG, "onResume() mTextureView.isAvailable() - TRUE - mTextureView.width:" +
-                        Integer.toString(mTextureView.getWidth()) + ", mTextureView.height:" + Integer.toString(mTextureView.getHeight()));
+                        mTextureView.getWidth() + ", mTextureView.height:" + mTextureView.getHeight());
                 openCamera(mTextureView.getWidth(), mTextureView.getHeight());
             } else {
                 Log.i(TAG, "onResume() mTextureView.isAvailable() - FALSE");
@@ -875,7 +925,7 @@ public class EmotionDetectionFragment extends Fragment
     }
 
     @Override
-    public void onConfigurationChanged (Configuration newConfig) {
+    public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         Log.i(TAG, "onConfigurationChanged (...) called");
         setTextureViewDims();

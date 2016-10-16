@@ -88,7 +88,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
                 String httpMsg = connection.getResponseMessage();
 
                 long afterConnectTime = System.currentTimeMillis();
-                Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + Integer.toString(httpCode) + ") " + httpMsg + " [Took for: " + Long.toString(afterConnectTime-beforeConnectTime) + "msec]");
+                Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + httpCode + ") " + httpMsg + " [Took for: " + (afterConnectTime-beforeConnectTime) + "msec]");
 
                 if (httpCode != HttpURLConnection.HTTP_OK) {
                     retStr = "API ERROR";
@@ -155,7 +155,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
         try {
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type", "application/octet-stream");
-            connection.setRequestProperty("Content-Length", "" + Integer.toString(requestJPEG.length));
+            connection.setRequestProperty("Content-Length", "" + requestJPEG.length);
             connection.setRequestProperty("Ocp-Apim-Subscription-Key", mKeyCSEmotion);
 
             connection.setUseCaches(false);
@@ -192,7 +192,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
                     if (!file.isDirectory())
                         file.delete();
             }
-            File mFile = new File(outDir, "p_"+ Integer.toString(mSerial.getAndAdd(1)) + "_" + emotion  + ".jpg");
+            File mFile = new File(outDir, "p_"+ mSerial.getAndAdd(1) + "_" + emotion  + ".jpg");
             output = new FileOutputStream(mFile);
             output.write(bytes);
         } catch (IOException e) {

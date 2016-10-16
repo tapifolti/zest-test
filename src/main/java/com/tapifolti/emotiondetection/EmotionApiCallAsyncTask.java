@@ -77,7 +77,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             int httpCode = connection.getResponseCode();
             String httpMsg = connection.getResponseMessage();
 
-            Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + Integer.toString(httpCode) + ") " + httpMsg);
+            Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + httpCode + ") " + httpMsg);
 
             if (httpCode != HttpURLConnection.HTTP_OK) {
                 retStr = "API ERROR";
@@ -141,7 +141,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
         try {
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type", "application/json");
-            connection.setRequestProperty("Content-Length", "" + Integer.toString(requestJsonStr.length()));
+            connection.setRequestProperty("Content-Length", "" + requestJsonStr.length());
             connection.setUseCaches(false);
             connection.setDoInput(true);
             connection.setDoOutput(true);
@@ -204,8 +204,8 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
                     if (!file.isDirectory())
                         file.delete();
             }
-            File mFile = new File(outDir, "p_"+ Integer.toString(mSerial.getAndAdd(1)) + "_" +
-                        Integer.toString(requestLen) + "_" + emotion  + ".jpg");
+            File mFile = new File(outDir, "p_"+ mSerial.getAndAdd(1) + "_" +
+                        requestLen + "_" + emotion  + ".jpg");
             output = new FileOutputStream(mFile);
             output.write(bytes);
         } catch (IOException e) {
