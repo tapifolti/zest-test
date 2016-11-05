@@ -43,38 +43,26 @@
         android:layout_centerInParent="true"
         android:visibility="invisible" />
 
-    <FrameLayout
-        android:id="@+id/control"
+    <TextView
         android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="@string/emoString"
+        android:id="@+id/emoResult"
+        android:maxHeight="50dp"
+        android:textColor="#840202"
+        android:textStyle="bold"
+        android:typeface="monospace"
+        android:height="50dp"
+        android:inputType="none"
+        android:textSize="25sp"
+        android:singleLine="true"
+        android:background="@color/control_textbackground"
+        android:paddingBottom="5dp"
+        android:paddingTop="5dp"
+        android:elevation="0dp"
+        android:gravity="center_horizontal"
         android:layout_alignParentStart="false"
-        android:background="@color/control_background"
-        android:layout_alignParentEnd="false"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentTop="false"
-        android:layout_alignParentBottom="true">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textAppearance="?android:attr/textAppearanceLarge"
-            android:text="@string/emoString"
-            android:id="@+id/emoResult"
-            android:layout_gravity="center"
-            android:maxHeight="40dp"
-            android:maxWidth="250dp"
-            android:textColor="#840202"
-            android:textStyle="bold"
-            android:typeface="monospace"
-            android:width="250dp"
-            android:height="40dp"
-            android:elegantTextHeight="true"
-            android:gravity="center"
-            android:inputType="none"
-            android:textSize="25sp"
-            android:singleLine="true" />
-
-    </FrameLayout>
+        android:layout_alignParentBottom="true" />
 
 </RelativeLayout>
