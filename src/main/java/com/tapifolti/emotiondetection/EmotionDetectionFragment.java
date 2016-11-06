@@ -34,6 +34,7 @@ import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.v13.app.FragmentCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.view.ViewPager;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -264,11 +265,11 @@ public class EmotionDetectionFragment extends Fragment
         RelativeLayout.LayoutParams relLayo = new RelativeLayout.LayoutParams(mPreviewSize.getWidth(), mPreviewSize.getHeight());
         relLayo.addRule(RelativeLayout.CENTER_IN_PARENT);
         mTextureView.setLayoutParams(relLayo);
-//        // TODO arrange text and image as needed
-//        // ViewGroup.LayoutParams textRelLayo = mTextView.getLayoutParams();
-        RelativeLayout.LayoutParams textRelLayo = new RelativeLayout.LayoutParams(mTextView.getLayoutParams()); // mTextView.getWidth(), mTextView.getHeight());
+        // arrange text as needed
+        // ViewGroup.LayoutParams textRelLayo = mTextView.getLayoutParams();
+        RelativeLayout.LayoutParams textRelLayo = new RelativeLayout.LayoutParams(mTextView.getLayoutParams());
         textRelLayo.addRule(RelativeLayout.CENTER_HORIZONTAL);
-        // textRelLayo.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+        // textRelLayo.addRule(RelativeLayout.CENTER_IN_PARENT);
         textRelLayo.addRule(RelativeLayout.ALIGN_BOTTOM, mTextureView.getId());
         mTextView.setLayoutParams(textRelLayo);
         // mTextView.bringToFront();
@@ -278,6 +279,7 @@ public class EmotionDetectionFragment extends Fragment
             // mTextureView.requestLayout();
             // mTextView.requestLayout();
         }
+        reArangeScreenLayout();
     }
 
 
@@ -797,30 +799,49 @@ public class EmotionDetectionFragment extends Fragment
         return "";
     }
 
-    private void reArangeScreenLayout(int screenW, int screenH) {
+    private void reArangeScreenLayout() {
         // TODO moves screen resources from lastRotation to mRotation position
         Log.i(TAG, "reArangeScreenLayout()");
 
+        int y;
         switch (mRotation) {
             case Surface.ROTATION_0:
                 mTextView.setRotation(0);
                 break;
             case Surface.ROTATION_90:
-                mTextView.setPivotX(mTextView.getWidth());
-                mTextView.setPivotY(0);
+                y = mTextureView.getWidth()/2-mTextView.getHeight();
+                mTextView.setPivotX(mTextView.getWidth()/2);
+                mTextView.setPivotY(-y);
                 mTextView.setRotation(90);
                 break;
             case Surface.ROTATION_180:
+                y = mTextureView.getHeight()/2-mTextView.getHeight();
                 mTextView.setPivotX(mTextView.getWidth()/2);
-                mTextView.setPivotY(mTextView.getHeight()/2);
+                mTextView.setPivotY(-y);
                 mTextView.setRotation(180);
                 break;
             case Surface.ROTATION_270:
-                mTextView.setPivotX(-100);
-                mTextView.setPivotY(-100);
+                // Log.i(TAG, "set mTextureView W:" + mTextureView.getHeight() + " x H:" + mTextView.getHeight());
+//                RelativeLayout.LayoutParams textRelLayo = new RelativeLayout.LayoutParams(mTextView.getWidth(), mTextView.getHeight());
+//                textRelLayo.addRule(RelativeLayout.CENTER_IN_PARENT);
+//                // textRelLayo.addRule(RelativeLayout.ALIGN_BOTTOM, mTextureView.getId());
+//                mTextView.setLayoutParams(textRelLayo);
+//                if (!isInLayout()) {
+//                    mTextView.getParent().requestLayout();
+//                }
+                y = mTextureView.getWidth()/2-mTextView.getHeight();
+                mTextView.setPivotX(mTextView.getWidth()/2);
+                mTextView.setPivotY(-y);
                 mTextView.setRotation(-90);
+                // mTextView.setWidth(mTextureView.getHeight());
                 break;
         }
+
+//        RelativeLayout.LayoutParams textRelLayo = new RelativeLayout.LayoutParams(mTextView.getLayoutParams());
+//        textRelLayo.addRule(RelativeLayout.CENTER_HORIZONTAL);
+//        textRelLayo.addRule(RelativeLayout.ALIGN_BOTTOM, mTextureView.getId());
+//        mTextView.setLayoutParams(textRelLayo);
+//        // mTextView.bringToFront();
 
 //        if (!isInLayout()) {
 //            mTextView.requestLayout();
@@ -840,9 +861,9 @@ public class EmotionDetectionFragment extends Fragment
 
             @Override
             public void onOrientationChanged(int degree) {
-                Point size = new Point();
-                getActivity().getWindowManager().getDefaultDisplay().getSize(size);
                 {
+                    Point size = new Point();
+                    getActivity().getWindowManager().getDefaultDisplay().getSize(size);
                     int rotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
                     int orient = getActivity().getResources().getConfiguration().orientation;
                     // Log.i(TAG, "Orientation changed to: " + degree + " degrees rotation: " + rotation + " orientation: " + orient + " displaySize: " + size.x + ", " + size.y);
@@ -857,7 +878,7 @@ public class EmotionDetectionFragment extends Fragment
                     mRotation = Surface.ROTATION_90;
                 }
                 if (mRotation != lastRotation) {
-                    reArangeScreenLayout(size.x, size.y);
+                    reArangeScreenLayout();
                     lastRotation = mRotation;
                 }
             }
