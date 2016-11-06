@@ -24,5 +24,5 @@
     <string name="camera_lockinterrupedclose">Interrupted while trying to lock camera closing.</string>
     <string name="apikey_error">API key not accessible on this device.</string>
     <string name="camera_cameraaccess">Cannot access camera, may be used by another application.</string>
-    <string name="emoString">1 2 3</string>
+    <string name="emoString">   </string>
 </resources>

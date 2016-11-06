@@ -241,16 +241,6 @@ public class EmotionDetectionFragment extends Fragment
         }};
 
     private void setTextureViewDims() {
-//        {   // for debugging only
-//            int displayRotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
-//            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getRotation() is: " + displayRotation);
-//            Point size = new Point();
-//            getActivity().getWindowManager().getDefaultDisplay().getSize(size);
-//            Log.i(TAG, "getActivity().getWindowManager().getDefaultDisplay().getSize(size) is (X,Y): " + size.x + ", " + size.y);
-//            int orient = getActivity().getResources().getConfiguration().orientation;
-//            Log.i(TAG, "getActivity().getResources().getConfiguration().orientation is: " + orient);
-//            Log.i(TAG, "mTextureView width, height: " + mTextureView.getWidth() + "," + mTextureView.getHeight());
-//        }
 
         // it gives back orientation dependent dimension, orientation is always portrait
         Point size = new Point();
@@ -266,20 +256,14 @@ public class EmotionDetectionFragment extends Fragment
         relLayo.addRule(RelativeLayout.CENTER_IN_PARENT);
         mTextureView.setLayoutParams(relLayo);
         // arrange text as needed
-        // ViewGroup.LayoutParams textRelLayo = mTextView.getLayoutParams();
         RelativeLayout.LayoutParams textRelLayo = new RelativeLayout.LayoutParams(mTextView.getLayoutParams());
         textRelLayo.addRule(RelativeLayout.CENTER_HORIZONTAL);
-        // textRelLayo.addRule(RelativeLayout.CENTER_IN_PARENT);
         textRelLayo.addRule(RelativeLayout.ALIGN_BOTTOM, mTextureView.getId());
         mTextView.setLayoutParams(textRelLayo);
-        // mTextView.bringToFront();
 
         if (!isInLayout()) {
             mTextureView.getParent().requestLayout();
-            // mTextureView.requestLayout();
-            // mTextView.requestLayout();
         }
-        reArangeScreenLayout();
     }
 
 
@@ -449,6 +433,7 @@ public class EmotionDetectionFragment extends Fragment
             // setUpCameraOrientation(width, height);
             manager.openCamera(mCameraId, mStateCallback, mBackgroundPreviewHandler);
             Log.i(TAG, "manager.openCamera(...) called");
+            reArangeScreenLayout();
         } catch (CameraAccessException e) {
             mCameraOpenCloseLock.release();
             Log.e(TAG, "CameraAccessException when openCamera(...)");
@@ -629,32 +614,6 @@ public class EmotionDetectionFragment extends Fragment
         }
     }
 
-//    private void setUpCameraOrientation(int width, int height) {
-//
-//        Activity activity = getActivity();
-//        if (null == mTextureView || null == mPreviewSize || null == activity) {
-//            return;
-//        }
-//        Log.i(TAG,  "setUpCameraOrientation() params: " + width + "x" + height +
-//                    "  mTextureView: " + mTextureView.getWidth() + "x" + mTextureView.getHeight() +
-//                    "  Preview dim: " + mPreviewSize.getWidth() + "x" + mPreviewSize.getHeight());
-//
-//        int rotation = 0; // always portrait
-//        Matrix matrix = new Matrix();
-//        RectF textureRect = new RectF(0, 0, width, height);
-//        float centerX = textureRect.centerX();
-//        float centerY = textureRect.centerY();
-//        if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
-//             float scaleX = (float) height / mPreviewSize.getWidth();
-//             float scaleY = (float) width / mPreviewSize.getHeight();
-//             matrix.postScale(scaleX, scaleY, centerX, centerY);
-//             matrix.postRotate(90 * (rotation - 2), centerX, centerY);
-//        } else if (Surface.ROTATION_180 == rotation) {
-//            matrix.postRotate(180, centerX, centerY);
-//        }
-//        mTextureView.setTransform(matrix);
-//    }
-
     private void takePicture() {
         // it can hit any time on the UI thread, even between onStart and onStop
         if (mBackgroundCaptureHandler != null) {
@@ -800,7 +759,7 @@ public class EmotionDetectionFragment extends Fragment
     }
 
     private void reArangeScreenLayout() {
-        // TODO moves screen resources from lastRotation to mRotation position
+        // moves screen resources from lastRotation to mRotation position
         Log.i(TAG, "reArangeScreenLayout()");
 
         int y;
@@ -821,36 +780,17 @@ public class EmotionDetectionFragment extends Fragment
                 mTextView.setRotation(180);
                 break;
             case Surface.ROTATION_270:
-                // Log.i(TAG, "set mTextureView W:" + mTextureView.getHeight() + " x H:" + mTextView.getHeight());
-//                RelativeLayout.LayoutParams textRelLayo = new RelativeLayout.LayoutParams(mTextView.getWidth(), mTextView.getHeight());
-//                textRelLayo.addRule(RelativeLayout.CENTER_IN_PARENT);
-//                // textRelLayo.addRule(RelativeLayout.ALIGN_BOTTOM, mTextureView.getId());
-//                mTextView.setLayoutParams(textRelLayo);
-//                if (!isInLayout()) {
-//                    mTextView.getParent().requestLayout();
-//                }
                 y = mTextureView.getWidth()/2-mTextView.getHeight();
                 mTextView.setPivotX(mTextView.getWidth()/2);
                 mTextView.setPivotY(-y);
                 mTextView.setRotation(-90);
-                // mTextView.setWidth(mTextureView.getHeight());
                 break;
         }
-
-//        RelativeLayout.LayoutParams textRelLayo = new RelativeLayout.LayoutParams(mTextView.getLayoutParams());
-//        textRelLayo.addRule(RelativeLayout.CENTER_HORIZONTAL);
-//        textRelLayo.addRule(RelativeLayout.ALIGN_BOTTOM, mTextureView.getId());
-//        mTextView.setLayoutParams(textRelLayo);
-//        // mTextView.bringToFront();
-
-//        if (!isInLayout()) {
-//            mTextView.requestLayout();
-//        }
     }
 
     private OrientationEventListener mOrientationListener;
 
-    int lastRotation = -1; // Surface.ROTATION_0;
+    int mLastRotation = -1;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -861,13 +801,13 @@ public class EmotionDetectionFragment extends Fragment
 
             @Override
             public void onOrientationChanged(int degree) {
-                {
-                    Point size = new Point();
-                    getActivity().getWindowManager().getDefaultDisplay().getSize(size);
-                    int rotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
-                    int orient = getActivity().getResources().getConfiguration().orientation;
-                    // Log.i(TAG, "Orientation changed to: " + degree + " degrees rotation: " + rotation + " orientation: " + orient + " displaySize: " + size.x + ", " + size.y);
-                }
+//                {
+//                    Point size = new Point();
+//                    getActivity().getWindowManager().getDefaultDisplay().getSize(size);
+//                    int rotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
+//                    int orient = getActivity().getResources().getConfiguration().orientation;
+//                    // Log.i(TAG, "Orientation changed to: " + degree + " degrees rotation: " + rotation + " orientation: " + orient + " displaySize: " + size.x + ", " + size.y);
+//                }
                 if (degree >= 315 || degree <= 45) {
                     mRotation = Surface.ROTATION_0;
                 } else if (degree > 45 && degree < 135) {
@@ -877,9 +817,9 @@ public class EmotionDetectionFragment extends Fragment
                 } else { // degree > 225 && degree < 315
                     mRotation = Surface.ROTATION_90;
                 }
-                if (mRotation != lastRotation) {
+                if (mRotation != mLastRotation) {
                     reArangeScreenLayout();
-                    lastRotation = mRotation;
+                    mLastRotation = mRotation;
                 }
             }
         };
@@ -983,11 +923,4 @@ public class EmotionDetectionFragment extends Fragment
         mUIHandler.removeCallbacks(takePictureTask);
         closeCamera();
     }
-
-//    @Override
-//    public void onConfigurationChanged(Configuration newConfig) {
-//        super.onConfigurationChanged(newConfig);
-//        Log.i(TAG, "onConfigurationChanged (...) called");
-//        setTextureViewDims();
-//    }
 }

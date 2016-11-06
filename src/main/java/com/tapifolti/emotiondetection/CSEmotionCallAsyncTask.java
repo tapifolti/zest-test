@@ -6,6 +6,7 @@ import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.util.Base64;
 import android.util.Log;
+import android.view.View;
 import android.widget.TextView;
 
 import org.json.JSONArray;
@@ -35,7 +36,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
 
     private static final String mEmotionURL = "https://api.projectoxford.ai/emotion/v1.0/recognize";
     private static AtomicInteger mSerial = new AtomicInteger(1);
-    private static boolean doCall = true; // TODO remove it
+    private static boolean doCall = false; // TODO remove it
 
     private TextView mTextView;
     private ConnectivityManager mConnMgr;
@@ -124,7 +125,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
     @Override
     protected void onPostExecute(String result) {
         if (result != null && !result.isEmpty()) {
-            mTextView.setText(insertNewLine(result));
+            mTextView.setText(result); // insertNewLine(result));
         }
     }
 
@@ -232,7 +233,6 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
         //        }
         //        ]
         String retStr = "";
-        Double retValue = 0.0;
         try {
             JSONArray itemsArray = new JSONArray(respStr);
             if (itemsArray.length() != 1) {
@@ -280,15 +280,15 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
     }
 
 
-    private String insertNewLine(String in) {
-        if (in == null || in.isEmpty())
-            return "";
-        if (mTextView.getWidth() > mTextView.getHeight()) {
-            return in;
-        }
-        String replaced = in.replaceAll("(.{1})", "$1\n");
-        return replaced.substring(0, replaced.length()-1);
-    }
+//    private String insertNewLine(String in) {
+//        if (in == null || in.isEmpty())
+//            return "";
+//        if (mTextView.getWidth() > mTextView.getHeight()) {
+//            return in;
+//        }
+//        String replaced = in.replaceAll("(.{1})", "$1\n");
+//        return replaced.substring(0, replaced.length()-1);
+//    }
 
     private static String readKeyCSEmotion() {
         // TODO: reads in the CS key from local file resource which is ecluded from source control
