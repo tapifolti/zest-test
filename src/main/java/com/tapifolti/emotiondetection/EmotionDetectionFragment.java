@@ -758,19 +758,37 @@ public class EmotionDetectionFragment extends Fragment
         return "";
     }
 
+    private Point calcPivot(int degree) {
+        int a = (mTextureView.getHeight() - mTextureView.getWidth())/2 - mTextView.getHeight();
+        int v = mTextureView.getWidth()-mTextView.getHeight();
+        Point ret = new Point();
+        if (degree > 0) {
+            ret.x = mTextureView.getWidth() -(v-a)/2;
+            ret.y = -1* (v -(v-a)/2);
+        } else {
+            ret.x = (v-a)/2;
+            ret.y = -1* (v - ret.x);
+        }
+        return ret;
+    }
+
     private void reArangeScreenLayout() {
         // moves screen resources from lastRotation to mRotation position
         Log.i(TAG, "reArangeScreenLayout()");
 
         int y;
+        Point pivot;
         switch (mRotation) {
             case Surface.ROTATION_0:
                 mTextView.setRotation(0);
                 break;
             case Surface.ROTATION_90:
-                y = mTextureView.getWidth()/2-mTextView.getHeight();
-                mTextView.setPivotX(mTextView.getWidth()/2);
-                mTextView.setPivotY(-y);
+                // y = mTextureView.getWidth()/2-mTextView.getHeight();
+                // mTextView.setPivotX(mTextView.getWidth()/2);
+                // mTextView.setPivotY(-y);
+                pivot = calcPivot(90);
+                mTextView.setPivotX(pivot.x);
+                mTextView.setPivotY(pivot.y);
                 mTextView.setRotation(90);
                 break;
             case Surface.ROTATION_180:
@@ -780,9 +798,12 @@ public class EmotionDetectionFragment extends Fragment
                 mTextView.setRotation(180);
                 break;
             case Surface.ROTATION_270:
-                y = mTextureView.getWidth()/2-mTextView.getHeight();
-                mTextView.setPivotX(mTextView.getWidth()/2);
-                mTextView.setPivotY(-y);
+                // y = mTextureView.getWidth()/2-mTextView.getHeight();
+                // mTextView.setPivotX(mTextView.getWidth()/2);
+                // mTextView.setPivotY(-y);
+                pivot = calcPivot(-90);
+                mTextView.setPivotX(pivot.x);
+                mTextView.setPivotY(pivot.y);
                 mTextView.setRotation(-90);
                 break;
         }
