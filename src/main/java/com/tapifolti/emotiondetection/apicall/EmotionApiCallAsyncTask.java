@@ -1,4 +1,4 @@
-package com.tapifolti.emotiondetection;
+package com.tapifolti.emotiondetection.apicall;
 
 import android.media.Image;
 import android.net.ConnectivityManager;
@@ -7,6 +7,8 @@ import android.os.AsyncTask;
 import android.util.Base64;
 import android.util.Log;
 import android.widget.TextView;
+
+import com.tapifolti.emotiondetection.game.Emotions;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -21,7 +23,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.ProtocolException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * AsyncTask to make REST api call for emotion detection
  */
 public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
+    public static final String TAG = "Emotion_Api";
 
     // TODO make configurable HOW? make it obfuscated
     private static final String mEmotionURL = "http://office.ultinous.com:11000/expr";
@@ -48,9 +50,9 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
 
     @Override
     protected String doInBackground(Image... params) {
-        Log.i(EmotionDetectionFragment.TAG, "doInBackground called");
+        Log.i(TAG, "doInBackground called");
         if (params == null || params.length != 1) {
-            Log.e(EmotionDetectionFragment.TAG, "no image/too many images got to call API with");
+            Log.e(TAG, "no image/too many images got to call API with");
             for (Image p : params) {
                 p.close();
             }
@@ -77,7 +79,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             int httpCode = connection.getResponseCode();
             String httpMsg = connection.getResponseMessage();
 
-            Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + httpCode + ") " + httpMsg);
+            Log.d(TAG, "HTTP Response: (" + httpCode + ") " + httpMsg);
 
             if (httpCode != HttpURLConnection.HTTP_OK) {
                 retStr = "API ERROR";
@@ -88,12 +90,12 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             connection.disconnect();
             connection = null;
 
-            Log.i(EmotionDetectionFragment.TAG, "JSon response: " + respStr);
+            Log.i(TAG, "JSon response: " + respStr);
             retStr = parseJson(respStr);
 
             return retStr;
         } catch (IOException e) {
-            Log.e(EmotionDetectionFragment.TAG, "Exception while calling emotion API");
+            Log.e(TAG, "Exception while calling emotion API");
             e.printStackTrace();
             retStr = "ERROR";
         } finally {
@@ -122,7 +124,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             String respStr = reader.readLine();
             return respStr;
         } catch (IOException e) {
-            Log.e(EmotionDetectionFragment.TAG, "Exception while reading reponse");
+            Log.e(TAG, "Exception while reading reponse");
             e.printStackTrace();
         } finally {
             if (reader != null) {
@@ -152,7 +154,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             wr.writeBytes(requestJsonStr);
             wr.flush();
         } catch (IOException e) {
-            Log.e(EmotionDetectionFragment.TAG, "Exception while sending request");
+            Log.e(TAG, "Exception while sending request");
             e.printStackTrace();
         } finally {
             if (wr != null) {
@@ -183,7 +185,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             request.put("image",requestStr);
             return request.toString();
         } catch (JSONException | UnsupportedEncodingException e) {
-            Log.e(EmotionDetectionFragment.TAG, "Exception while creating request from image");
+            Log.e(TAG, "Exception while creating request from image");
             e.printStackTrace();
         } finally {
             if (image != null) {
@@ -199,7 +201,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
         try {
             File outDir = mTextView.getContext().getExternalFilesDir(null);
             if (mSerial.get() == 1) {
-                Log.i(EmotionDetectionFragment.TAG, "Output file path: " + outDir.getPath());
+                Log.i(TAG, "Output file path: " + outDir.getPath());
                 for(File file: outDir.listFiles())
                     if (!file.isDirectory())
                         file.delete();
@@ -209,7 +211,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             output = new FileOutputStream(mFile);
             output.write(bytes);
         } catch (IOException e) {
-            Log.e(EmotionDetectionFragment.TAG, "Exception while writing JPEG file");
+            Log.e(TAG, "Exception while writing JPEG file");
             e.printStackTrace();
         } finally {
             if (null != output) {
@@ -242,7 +244,7 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
                 retStr = errorJson.getString("msg").substring(0, 10).toUpperCase();
             }
         } catch (JSONException e) {
-            Log.e(EmotionDetectionFragment.TAG, "Exception when parsing JSon response");
+            Log.e(TAG, "Exception when parsing JSon response");
             e.printStackTrace();
         }
         return retStr;
@@ -254,13 +256,13 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
             if (mWifiOnly) {
                 boolean isWifi = (networkInfo.getType()  == ConnectivityManager.TYPE_WIFI);
                 if (!isWifi) {
-                    Log.d(EmotionDetectionFragment.TAG, "There is no WIFI connection");
+                    Log.d(TAG, "There is no WIFI connection");
                 }
                 return isWifi;
             }
             return true;
         } else {
-            Log.d(EmotionDetectionFragment.TAG, "There is no Internet connection");
+            Log.d(TAG, "There is no Internet connection");
             return false;
         }
     }

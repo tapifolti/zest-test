@@ -1,13 +1,13 @@
-package com.tapifolti.emotiondetection;
+package com.tapifolti.emotiondetection.apicall;
 
 import android.media.Image;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
-import android.util.Base64;
 import android.util.Log;
-import android.view.View;
 import android.widget.TextView;
+
+import com.tapifolti.emotiondetection.game.Emotions;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -20,11 +20,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -33,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * AsyncTask to make REST api call for emotion detection
  */
 public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
+    public static final String TAG = "Emotion_CSApi";
 
     private static final String mEmotionURL = "https://api.projectoxford.ai/emotion/v1.0/recognize";
     private static AtomicInteger mSerial = new AtomicInteger(1);
@@ -52,9 +51,9 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
 
     @Override
     protected String doInBackground(Image... params) {
-        Log.i(EmotionDetectionFragment.TAG, "doInBackground called");
+        Log.i(TAG, "doInBackground called");
         if (params == null || params.length != 1) {
-            Log.e(EmotionDetectionFragment.TAG, "no image/too many images got to call API with");
+            Log.e(TAG, "no image/too many images got to call API with");
             for (Image p : params) {
                 p.close();
             }
@@ -89,7 +88,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
                 String httpMsg = connection.getResponseMessage();
 
                 long afterConnectTime = System.currentTimeMillis();
-                Log.d(EmotionDetectionFragment.TAG, "HTTP Response: (" + httpCode + ") " + httpMsg + " [Took for: " + (afterConnectTime-beforeConnectTime) + "msec]");
+                Log.d(TAG, "HTTP Response: (" + httpCode + ") " + httpMsg + " [Took for: " + (afterConnectTime-beforeConnectTime) + "msec]");
 
                 if (httpCode != HttpURLConnection.HTTP_OK) {
                     retStr = "API ERROR";
@@ -101,12 +100,12 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
                 connection = null;
             }
 
-            Log.i(EmotionDetectionFragment.TAG, "JSon response: " + respStr);
+            Log.i(TAG, "JSon response: " + respStr);
             retStr = parseJson(respStr);
 
             return retStr;
         } catch (IOException e) {
-            Log.e(EmotionDetectionFragment.TAG, "Exception while calling emotion API");
+            Log.e(TAG, "Exception while calling emotion API");
             e.printStackTrace();
             retStr = "ERROR";
         } finally {
@@ -137,7 +136,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
             String respStr = reader.readLine();
             return respStr;
         } catch (IOException e) {
-            Log.e(EmotionDetectionFragment.TAG, "Exception while reading reponse");
+            Log.e(TAG, "Exception while reading reponse");
             e.printStackTrace();
         } finally {
             if (reader != null) {
@@ -169,7 +168,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
             wr.write(requestJPEG);
             wr.flush();
         } catch (IOException e) {
-            Log.e(EmotionDetectionFragment.TAG, "Exception while sending request");
+            Log.e(TAG, "Exception while sending request");
             e.printStackTrace();
         } finally {
             if (wr != null) {
@@ -188,7 +187,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
         try {
             File outDir = mTextView.getContext().getExternalFilesDir(null);
             if (mSerial.get() == 1) {
-                Log.i(EmotionDetectionFragment.TAG, "Output file path: " + outDir.getPath());
+                Log.i(TAG, "Output file path: " + outDir.getPath());
                 for(File file: outDir.listFiles())
                     if (!file.isDirectory())
                         file.delete();
@@ -197,7 +196,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
             output = new FileOutputStream(mFile);
             output.write(bytes);
         } catch (IOException e) {
-            Log.e(EmotionDetectionFragment.TAG, "Exception while writing JPEG file");
+            Log.e(TAG, "Exception while writing JPEG file");
             e.printStackTrace();
         } finally {
             if (null != output) {
@@ -221,7 +220,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
         //                    "height": 97
         //        },
         //            "scores": {
-        //            "anger": 0.00300731952,
+        //                    "anger": 0.00300731952,
         //                    "contempt": 5.14648448E-08,
         //                    "disgust": 9.180124E-06,
         //                    "fear": 0.0001912825,
@@ -242,21 +241,21 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
 
             JSONObject item = itemsArray.getJSONObject(0);
             JSONObject scores = item.getJSONObject("scores");
-            maxMap.put(scores.getDouble("anger"), "anger");
-            maxMap.put(scores.getDouble("contempt"), "contempt");
-            maxMap.put(scores.getDouble("disgust"), "disgust");
-            maxMap.put(scores.getDouble("fear"), "fear");
-            maxMap.put(scores.getDouble("happiness"), "happiness");
-            maxMap.put(scores.getDouble("neutral"), "neutral");
-            maxMap.put(scores.getDouble("sadness"), "sadness");
-            maxMap.put(scores.getDouble("surprise"), "surprise");
+            maxMap.put(scores.getDouble(Emotions.ANGER), Emotions.ANGER);
+            maxMap.put(scores.getDouble(Emotions.CONTEMPT), Emotions.CONTEMPT);
+            maxMap.put(scores.getDouble(Emotions.DISGUST), Emotions.DISGUST);
+            maxMap.put(scores.getDouble(Emotions.FEAR), Emotions.FEAR);
+            maxMap.put(scores.getDouble(Emotions.HAPPINESS), Emotions.HAPPINESS);
+            maxMap.put(scores.getDouble(Emotions.NEUTRAL), Emotions.NEUTRAL);
+            maxMap.put(scores.getDouble(Emotions.SADNESS), Emotions.SADNESS);
+            maxMap.put(scores.getDouble(Emotions.SURPRISE), Emotions.SURPRISE);
 
             Map.Entry<Double, String> maxEntry = maxMap.lastEntry();
-            Log.i(EmotionDetectionFragment.TAG, "MAX Score: " + maxEntry.getValue() + " : " + maxEntry.getKey().toString());
+            Log.i(TAG, "MAX Score: " + maxEntry.getValue() + " : " + maxEntry.getKey().toString());
             retStr = maxEntry.getValue();
 
         } catch (JSONException e) {
-            Log.e(EmotionDetectionFragment.TAG, "Exception when parsing JSon response");
+            Log.e(TAG, "Exception when parsing JSon response");
             e.printStackTrace();
         }
         return retStr;
@@ -268,13 +267,13 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
             if (mWifiOnly) {
                 boolean isWifi = (networkInfo.getType()  == ConnectivityManager.TYPE_WIFI);
                 if (!isWifi) {
-                    Log.d(EmotionDetectionFragment.TAG, "There is no WIFI connection");
+                    Log.d(TAG, "There is no WIFI connection");
                 }
                 return isWifi;
             }
             return true;
         } else {
-            Log.d(EmotionDetectionFragment.TAG, "There is no Internet connection");
+            Log.d(TAG, "There is no Internet connection");
             return false;
         }
     }

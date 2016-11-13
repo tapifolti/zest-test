@@ -1,6 +1,6 @@
 package com.tapifolti.emotiondetection.test;
 
-import com.tapifolti.emotiondetection.CSEmotionCallAsyncTask;
+import com.tapifolti.emotiondetection.apicall.CSEmotionCallAsyncTask;
 
 import org.junit.Test;
 

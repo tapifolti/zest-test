@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_vertical|center_horizontal"
+    android:background="@color/control_background"
+    android:keepScreenOn="true" >
+
+
+    <!--android:layout_alignParentTop="true"-->
+    <!--android:layout_alignParentBottom="true"-->
+    <!--android:layout_alignParentLeft="true"-->
+    <!--android:layout_alignParentRight="true"-->
+    <!--android:layout_alignParentLeft="true"-->
+    <!--android:layout_alignParentRight="true"-->
+
+    <TextureView
+        android:id="@+id/texture"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center_vertical|center_horizontal|center"
+        android:gravity="center_vertical|center_horizontal|center"
+        android:layout_centerInParent="true"
+        android:foregroundGravity="center_vertical|center_horizontal|center"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="@string/denied_permission"
+        android:id="@+id/permisson"
+        android:layout_gravity="center"
+        android:textColor="#840202"
+        android:typeface="monospace"
+        android:elegantTextHeight="true"
+        android:gravity="center"
+        android:inputType="none"
+        android:textSize="25sp"
+        android:layout_centerInParent="true"
+        android:visibility="invisible" />
+
+    <android.support.v7.widget.CardView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/card1"
+        android:layout_alignParentTop="true" />
+
+</RelativeLayout>

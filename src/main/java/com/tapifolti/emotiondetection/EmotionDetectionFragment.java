@@ -9,12 +9,9 @@ import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
-import android.content.res.Configuration;
 import android.content.res.XmlResourceParser;
 import android.graphics.ImageFormat;
-import android.graphics.Matrix;
 import android.graphics.Point;
-import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
 import android.hardware.SensorManager;
 import android.hardware.camera2.CameraAccessException;
@@ -32,9 +29,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.support.annotation.NonNull;
-import android.support.v13.app.FragmentCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.view.ViewPager;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -44,28 +39,25 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
-import android.widget.FrameLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
-
+import com.tapifolti.emotiondetection.apicall.CSEmotionCallAsyncTask;
+import com.tapifolti.emotiondetection.game.PlayGame;
 import org.xmlpull.v1.XmlPullParserException;
-
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
-public class EmotionDetectionFragment extends Fragment
-        implements FragmentCompat.OnRequestPermissionsResultCallback {
+public class EmotionDetectionFragment extends Fragment {
+
+    public static final String TAG = "Emotion_Detection";
+
+    private TextView mPermText;
 
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
-    private static final int REQUEST_APP_PERMISSION = 1;
     private static final String FRAGMENT_DIALOG = "dialog";
 
     static {
@@ -82,11 +74,6 @@ public class EmotionDetectionFragment extends Fragment
     boolean mAppIsResumed = false;
 
     /**
-     * Tag for the {@link Log}.
-     */
-    public static final String TAG = "EmotionDetection";
-
-    /**
      * Max preview size that is guaranteed by Camera2 API
      */
     private static int MAX_PREVIEW_WIDTH = 1920;
@@ -98,7 +85,6 @@ public class EmotionDetectionFragment extends Fragment
      */
     private final TextureView.SurfaceTextureListener mSurfaceTextureListener
             = new TextureView.SurfaceTextureListener() {
-
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture texture, int width, int height) {
             Log.i(TAG, "onSurfaceTextureAvailable(...) called");
@@ -111,7 +97,6 @@ public class EmotionDetectionFragment extends Fragment
         public void onSurfaceTextureSizeChanged(SurfaceTexture texture, int width, int height) {
             Log.i(TAG, "onSurfaceTextureSizeChanged(...), Width, Height: " + width + ", " + height);
             Log.i(TAG, "mTextureView width, height: " + mTextureView.getWidth() + "," + mTextureView.getHeight());
-            // setUpCameraOrientation(width, height);
         }
 
         @Override
@@ -124,13 +109,11 @@ public class EmotionDetectionFragment extends Fragment
         public void onSurfaceTextureUpdated(SurfaceTexture texture) {
             // Log.i(TAG, "onSurfaceTextureUpdated(...) called");
         }
-
     };
 
     private String mCameraId;
     private TextureView mTextureView;
     private TextView mTextView;
-    private TextView mPermText;
     private String mKeyCSEmotion;
 
     private CameraCaptureSession mCaptureSession;
@@ -140,7 +123,6 @@ public class EmotionDetectionFragment extends Fragment
      * {@link CameraDevice.StateCallback} is called when {@link CameraDevice} changes its state.
      */
     private final CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
-
         @Override
         public void onClosed(CameraDevice camera) {
             Log.i(TAG, "CameraDevice onClosed()");
@@ -181,7 +163,6 @@ public class EmotionDetectionFragment extends Fragment
                 activity.finish();
             }
         }
-
     };
 
     private HandlerThread mBackgroundPreviewThread;
@@ -190,14 +171,11 @@ public class EmotionDetectionFragment extends Fragment
     private Handler mBackgroundPreviewHandler;
     private Handler mBackgroundCaptureHandler;
 
-    /**
-     * An {@link ImageReader} that handles still image capture.
-     */
     private ImageReader mImageReader;
 
     private Handler mUIHandler;
 
-    private boolean mCanUseCamera = true;
+    private CameraPermission mCameraPermission = new CameraPermission(this);
 
     private ConnectivityManager mConnMgr;
 
@@ -207,41 +185,39 @@ public class EmotionDetectionFragment extends Fragment
      */
     private final ImageReader.OnImageAvailableListener mOnImageAvailableListener
             = new ImageReader.OnImageAvailableListener() {
-
         @Override
         public void onImageAvailable(ImageReader reader) {
             new CSEmotionCallAsyncTask(mTextView, mConnMgr, false, mKeyCSEmotion).execute(reader.acquireNextImage());
         }
-
     };
-
 
     /**
      * A {@link Semaphore} to ensure camera open/ camera close execution is separated
      */
     private Semaphore mCameraOpenCloseLock = new Semaphore(1);
 
-     /**
+    /**
      * Orientation of the camera sensor
      */
     private int mSensorOrientation;
     private Size mPreviewSize; // W > H always should be swapped as needed
     private int mRotation; // mimics: getActivity().getWindowManager().getDefaultDisplay().getRotation()
 
+    // TODO set from intent parameter
+    private static PlayGame mGame;
 
     public static EmotionDetectionFragment newInstance() {
         return new EmotionDetectionFragment();
     }
 
-
     Runnable takePictureTask = new Runnable() {
         @Override
         public void run() {
             takePicture();
-        }};
+        }
+    };
 
     private void setTextureViewDims() {
-
         // it gives back orientation dependent dimension, orientation is always portrait
         Point size = new Point();
         getActivity().getWindowManager().getDefaultDisplay().getSize(size);
@@ -263,32 +239,6 @@ public class EmotionDetectionFragment extends Fragment
 
         if (!isInLayout()) {
             mTextureView.getParent().requestLayout();
-        }
-    }
-
-
-    private void requestCameraPermission() {
-        if (FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA) ) {
-            new ConfirmationDialog().show(getChildFragmentManager(), FRAGMENT_DIALOG);
-        } else {
-            FragmentCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA},
-                    REQUEST_APP_PERMISSION);
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_APP_PERMISSION) {
-            if (grantResults == null || grantResults.length != 1 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-                Log.i(TAG, "onRequestPermissionsResult() permission denied");
-                mCanUseCamera = false;
-            } else {
-                Log.i(TAG, "onRequestPermissionsResult() permission granted");
-                mCanUseCamera = true;
-            }
-        } else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         }
     }
 
@@ -326,7 +276,7 @@ public class EmotionDetectionFragment extends Fragment
                 int[] scenes = characteristics.get(CameraCharacteristics.CONTROL_AVAILABLE_SCENE_MODES);
                 Log.i(TAG, "Scene modes:" + Arrays.toString(scenes));
 
-                int[] noiseRed =  characteristics.get(CameraCharacteristics.NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES);
+                int[] noiseRed = characteristics.get(CameraCharacteristics.NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES);
                 Log.i(TAG, "Noise reduction modes:" + Arrays.toString(noiseRed));
 
                 StreamConfigurationMap map = characteristics.get(
@@ -372,23 +322,23 @@ public class EmotionDetectionFragment extends Fragment
         }
     }
 
-    private static Size findGreaterOrEqualTo640x480(Size [] sizes) {
+    private static Size findGreaterOrEqualTo640x480(Size[] sizes) {
         if (sizes == null || sizes.length == 0) {
             return null;
         }
         Collections.sort(Arrays.asList(sizes), new CompareSizesByArea());
-        for (Size ss: sizes) {
+        for (Size ss : sizes) {
             if (ss.getWidth() == 640 || ss.getWidth() == 480) {
                 return ss;
             }
-            if ((long)ss.getWidth()*ss.getHeight() >= (long)640*480) {
+            if ((long) ss.getWidth() * ss.getHeight() >= (long) 640 * 480) {
                 return ss;
             }
         }
         return sizes[0]; // smallest
     }
 
-    private Size chooseOptimalPreviewSize(Size [] sizes) {
+    private Size chooseOptimalPreviewSize(Size[] sizes) {
         // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
         // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
         // garbage capture data.
@@ -420,7 +370,7 @@ public class EmotionDetectionFragment extends Fragment
     private void openCamera(int width, int height) {
         if (ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
-            requestCameraPermission();
+            mCameraPermission.requestCameraPermission();
             return; // onResume will be called if permission granted
         }
         CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
@@ -430,7 +380,6 @@ public class EmotionDetectionFragment extends Fragment
                 ErrorDialog.newInstance(getString(R.string.camera_lockerror))
                         .show(getChildFragmentManager(), FRAGMENT_DIALOG);
             }
-            // setUpCameraOrientation(width, height);
             manager.openCamera(mCameraId, mStateCallback, mBackgroundPreviewHandler);
             Log.i(TAG, "manager.openCamera(...) called");
             reArangeScreenLayout();
@@ -622,7 +571,6 @@ public class EmotionDetectionFragment extends Fragment
         }
     }
 
-
     Runnable captureStillPictureTask = new Runnable() {
         @Override
         public void run() {
@@ -686,14 +634,12 @@ public class EmotionDetectionFragment extends Fragment
      * Compares two {@code Size}s based on their areas.
      */
     static class CompareSizesByArea implements Comparator<Size> {
-
         @Override
         public int compare(Size lhs, Size rhs) {
             // We cast here to ensure the multiplications won't overflow
             return Long.signum((long) lhs.getWidth() * lhs.getHeight() -
                     (long) rhs.getWidth() * rhs.getHeight());
         }
-
     }
 
     public static class ErrorDialog extends DialogFragment {
@@ -723,25 +669,6 @@ public class EmotionDetectionFragment extends Fragment
         }
     }
 
-    public static class ConfirmationDialog extends DialogFragment {
-
-        @Override
-        public Dialog onCreateDialog(Bundle savedInstanceState) {
-            final Fragment parent = getParentFragment();
-            return new AlertDialog.Builder(getActivity())
-                    .setMessage(R.string.request_permission)
-                    .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            FragmentCompat.requestPermissions(parent,
-                                    new String[]{Manifest.permission.CAMERA},
-                                    REQUEST_APP_PERMISSION);
-                        }
-                    })
-                    .create();
-        }
-    }
-
     private String getApiKey() {
         XmlResourceParser parser = getActivity().getResources().getXml(R.xml.mscsvalue);
         try {
@@ -753,7 +680,6 @@ public class EmotionDetectionFragment extends Fragment
             Log.e(TAG, "API key not accessible on this device");
             ErrorDialog.newInstance(getString(R.string.apikey_error))
                     .show(getChildFragmentManager(), FRAGMENT_DIALOG);
-
         }
         return "";
     }
@@ -772,8 +698,10 @@ public class EmotionDetectionFragment extends Fragment
         return ret;
     }
 
+    /**
+     * moves screen resources from lastRotation to mRotation position
+     */
     private void reArangeScreenLayout() {
-        // moves screen resources from lastRotation to mRotation position
         Log.i(TAG, "reArangeScreenLayout()");
 
         int y;
@@ -783,9 +711,6 @@ public class EmotionDetectionFragment extends Fragment
                 mTextView.setRotation(0);
                 break;
             case Surface.ROTATION_90:
-                // y = mTextureView.getWidth()/2-mTextView.getHeight();
-                // mTextView.setPivotX(mTextView.getWidth()/2);
-                // mTextView.setPivotY(-y);
                 pivot = calcPivot(90);
                 mTextView.setPivotX(pivot.x);
                 mTextView.setPivotY(pivot.y);
@@ -798,9 +723,6 @@ public class EmotionDetectionFragment extends Fragment
                 mTextView.setRotation(180);
                 break;
             case Surface.ROTATION_270:
-                // y = mTextureView.getWidth()/2-mTextView.getHeight();
-                // mTextView.setPivotX(mTextView.getWidth()/2);
-                // mTextView.setPivotY(-y);
                 pivot = calcPivot(-90);
                 mTextView.setPivotX(pivot.x);
                 mTextView.setPivotY(pivot.y);
@@ -844,13 +766,11 @@ public class EmotionDetectionFragment extends Fragment
                 }
             }
         };
-
         if (mOrientationListener.canDetectOrientation()) {
             mOrientationListener.enable();
         } else {
             mOrientationListener.disable();
         }
-
     }
 
     @Override
@@ -863,7 +783,7 @@ public class EmotionDetectionFragment extends Fragment
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         Log.i(TAG, "onCreateView(...) called");
-        return inflater.inflate(R.layout.fragment_camera2_basic, container, false);
+        return inflater.inflate(R.layout.fragment_camera, container, false);
     }
 
     @Override
@@ -911,14 +831,11 @@ public class EmotionDetectionFragment extends Fragment
         super.onResume();
         Log.i(TAG, "onResume() called");
         mAppIsResumed = true;
-        if (!mCanUseCamera && ContextCompat.checkSelfPermission(getActivity(), Manifest.permission.CAMERA)
-                != PackageManager.PERMISSION_GRANTED &&
-                !FragmentCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
+        if (mCameraPermission.showPermissionMessage()) {
             mPermText.setVisibility(View.VISIBLE);
         } else {
-            mCanUseCamera = true;
+            mCameraPermission.setCanUseCamera(true);
             mPermText.setVisibility(View.INVISIBLE);
-
             setTextureViewDims();
 
             // When the screen is turned off and turned back on, the SurfaceTexture is already
@@ -943,5 +860,13 @@ public class EmotionDetectionFragment extends Fragment
         mAppIsResumed = false;
         mUIHandler.removeCallbacks(takePictureTask);
         closeCamera();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (!mCameraPermission.onRequestPermissionsResult(requestCode, permissions, grantResults)) {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
     }
 }
