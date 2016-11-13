@@ -23,7 +23,16 @@
         </menu>
     </item>
     <item android:id="@+id/reg"
-        android:title="CS Registration" />
+        android:title="MS CS Registration" >
+        <menu>
+        <item android:id="@+id/setkey"
+            android:title="Set Key" />
+        <item android:id="@+id/howto"
+            android:title="How to Register" />
+        </menu>
+    </item>
+    <item android:id="@+id/pref"
+        android:title="Preferences" />
     <item android:id="@+id/help"
         android:title="Help" />
     <item android:id="@+id/about"

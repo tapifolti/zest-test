@@ -2,7 +2,6 @@ package com.tapifolti.emotiondetection.game;
 
 
 public enum PlayGame {
-
     PLAY_MIRROR(""),
     PLAY_HAPPINESS(Emotions.HAPPINESS),
     PLAY_NEUTRAL(Emotions.NEUTRAL),
@@ -12,6 +11,8 @@ public enum PlayGame {
     PLAY_FEAR(Emotions.FEAR),
     PLAY_DISGUST(Emotions.DISGUST),
     PLAY_CONTEMPT(Emotions.CONTEMPT);
+
+    public static String PLAY = "Play";
 
     private final String text;
 

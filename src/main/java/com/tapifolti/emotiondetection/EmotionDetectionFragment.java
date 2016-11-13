@@ -8,6 +8,7 @@ import android.app.DialogFragment;
 import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.XmlResourceParser;
 import android.graphics.ImageFormat;
@@ -735,9 +736,14 @@ public class EmotionDetectionFragment extends Fragment {
 
     int mLastRotation = -1;
 
+    PlayGame mPlayGame = PlayGame.PLAY_MIRROR;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Intent intent = getActivity().getIntent();
+        mPlayGame = PlayGame.findItem(intent.getStringExtra(PlayGame.PLAY));
+        Log.i(TAG, "CameraActivity Fragement created for: " + mPlayGame.toString());
 
         mOrientationListener = new OrientationEventListener(getActivity().getBaseContext(),
                 SensorManager.SENSOR_DELAY_NORMAL) {

@@ -31,12 +31,11 @@ public class RootActivity extends Activity {
     }
 
     public boolean onOptionsItemSelected(MenuItem item) {
-        // super.onOptionsItemSelected(item);
         Log.i(TAG, "MenuItem selected: " + item.toString());
         Intent myIntent = new Intent(this, CameraActivity.class);
         switch (item.getItemId()) {
             case R.id.mirror:
-                myIntent.putExtra("Play", PlayGame.PLAY_MIRROR); //Optional parameters
+                myIntent.putExtra(PlayGame.PLAY, PlayGame.PLAY_MIRROR.toString()); //Optional parameters
                 startActivity(myIntent);
                 break;
             case R.id.happy:
@@ -48,11 +47,17 @@ public class RootActivity extends Activity {
             case R.id.disgust:
             case R.id.contempt:
                 int space = item.toString().indexOf(" ");
-                myIntent.putExtra("Play", PlayGame.findItem(item.toString().substring(space+1)));
+                myIntent.putExtra(PlayGame.PLAY, PlayGame.findItem(item.toString().substring(space+1)).toString());
                 startActivity(myIntent);
                 break;
-            case R.id.reg:
+            case R.id.setkey:
+                // TODO set CS key
+                break;
+            case R.id.howto:
                 // TODO how to register to CS
+                break;
+            case R.id.pref:
+                // TODO Preferences as it should be implemented: wifi, timer speed
                 break;
             case R.id.help:
                 // TODO Help
