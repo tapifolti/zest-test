@@ -1,6 +1,7 @@
 package com.tapifolti.emotiondetection;
 
 import android.app.Fragment;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v13.app.FragmentCompat;
@@ -8,7 +9,12 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.GridView;
 import android.widget.TextView;
+
+import com.tapifolti.emotiondetection.game.GridViewAdapter;
+import com.tapifolti.emotiondetection.game.PlayGame;
 
 
 public class RootFragment extends Fragment
@@ -43,10 +49,29 @@ public class RootFragment extends Fragment
         Log.i(TAG, "onCreateView(...) called");
         return inflater.inflate(R.layout.fragment_root, container, false);
     }
+
+    private GridView mGridView;
+
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
         Log.i(TAG, "onViewCreated(...) called");
         mPermText = (TextView) view.findViewById(R.id.permisson);
+        mGridView = (GridView) view.findViewById(R.id.gridview);
+        GridViewAdapter gridAdapter = new GridViewAdapter(getActivity());
+        mGridView.setAdapter(gridAdapter);
+        mGridView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            public void onItemClick(AdapterView<?> parent, View v,
+                                    int position, long id) {
+                String emotion = (String)parent.getItemAtPosition(position);
+                Log.i(TAG, "GridItem selected: " + emotion);
+                Intent myIntent = new Intent(getActivity(), CameraActivity.class);
+                myIntent.putExtra(PlayGame.PLAY, PlayGame.findItem(emotion));
+                startActivity(myIntent);
+            }
+        });        if (!isInLayout()) {
+            mGridView.getParent().requestLayout();
+        }
+
     }
 
     @Override

@@ -35,7 +35,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
 
     private static final String mEmotionURL = "https://api.projectoxford.ai/emotion/v1.0/recognize";
     private static AtomicInteger mSerial = new AtomicInteger(1);
-    private static boolean doCall = false; // TODO remove it
+    private static boolean doCall = true; // TODO remove it
 
     private TextView mTextView;
     private ConnectivityManager mConnMgr;
@@ -124,7 +124,7 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
     @Override
     protected void onPostExecute(String result) {
         if (result != null && !result.isEmpty()) {
-            mTextView.setText(result); // insertNewLine(result));
+            mTextView.setText(result.toUpperCase()); // insertNewLine(result));
         }
     }
 

@@ -1,36 +1,52 @@
 package com.tapifolti.emotiondetection.game;
 
 
-public enum PlayGame {
-    PLAY_MIRROR(""),
-    PLAY_HAPPINESS(Emotions.HAPPINESS),
-    PLAY_NEUTRAL(Emotions.NEUTRAL),
-    PLAY_ANGER(Emotions.ANGER),
-    PLAY_SADNESS(Emotions.SADNESS),
-    PLAY_SURPRISE(Emotions.SURPRISE),
-    PLAY_FEAR(Emotions.FEAR),
-    PLAY_DISGUST(Emotions.DISGUST),
-    PLAY_CONTEMPT(Emotions.CONTEMPT);
+import java.io.Serializable;
+
+public enum PlayGame implements Serializable {
+    MIRROR(Emotions.MIRROR, "Mirrors you emotions"),
+    PLAY_HAPPINESS(Emotions.HAPPINESS, "Be Happy"),
+    PLAY_NEUTRAL(Emotions.NEUTRAL, "Stay Neutral"),
+    PLAY_ANGER(Emotions.ANGER, "Show Anger"),
+    PLAY_SADNESS(Emotions.SADNESS, "Show Sadness"),
+    PLAY_SURPRISE(Emotions.SURPRISE, "Be Surprised"),
+    PLAY_FEAR(Emotions.FEAR, "Show Fear"),
+    PLAY_DISGUST(Emotions.DISGUST, "Be Disgusted"),
+    PLAY_CONTEMPT(Emotions.CONTEMPT, "Show Contempt");
 
     public static String PLAY = "Play";
 
-    private final String text;
+    private final String mText;
+    private final String mDesc;
 
-    private PlayGame(final String text) {
-        this.text = text;
+    PlayGame(final String text, final String desc) {
+        this.mText = text;
+        this.mDesc = desc;
     }
 
     @Override
     public String toString() {
-        return text;
+        return mText;
     }
+
+    public String getDesc() {return mDesc; }
 
     public static PlayGame findItem(String item) {
         for (PlayGame game : PlayGame.values()) {
-            if (item.toLowerCase().equals(game.text.toLowerCase())) {
+            if (item.toLowerCase().equals(game.mText.toLowerCase())) {
                 return game;
             }
         }
-        return PLAY_MIRROR;
+        return MIRROR;
     }
+
+    public static String[] emotions() {
+        String[] ret = new String[PlayGame.values().length];
+        int i = 0;
+        for (PlayGame game : PlayGame.values()) {
+            ret[i++] = game.mText;
+        }
+        return ret;
+    }
+
 }

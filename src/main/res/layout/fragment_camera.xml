@@ -65,6 +65,7 @@
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
         android:paddingEnd="10dp"
-        android:paddingStart="10dp" />
+        android:paddingStart="10dp"
+        android:letterSpacing="0.1" />
 
 </RelativeLayout>

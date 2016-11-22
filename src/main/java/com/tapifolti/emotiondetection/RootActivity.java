@@ -7,11 +7,16 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.widget.GridView;
 
+import com.tapifolti.emotiondetection.game.GridViewAdapter;
 import com.tapifolti.emotiondetection.game.PlayGame;
+
+
 
 public class RootActivity extends Activity {
     private static final String TAG = "Emotion_RootActivity";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -24,9 +29,12 @@ public class RootActivity extends Activity {
     }
 
     public boolean onCreateOptionsMenu(Menu menu) {
-
+        // it goes to the ... menu which is theoverflow menu
+        // TODO add ||| menu instead of ... menu
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.root_menu, menu);
+        // TODO add icon
+        // getActionBar().setIcon(getApplication().getApplicationInfo().icon);
         return true;
     }
 
@@ -35,7 +43,7 @@ public class RootActivity extends Activity {
         Intent myIntent = new Intent(this, CameraActivity.class);
         switch (item.getItemId()) {
             case R.id.mirror:
-                myIntent.putExtra(PlayGame.PLAY, PlayGame.PLAY_MIRROR.toString()); //Optional parameters
+                myIntent.putExtra(PlayGame.PLAY, PlayGame.MIRROR); //Optional parameters
                 startActivity(myIntent);
                 break;
             case R.id.happy:
@@ -46,8 +54,7 @@ public class RootActivity extends Activity {
             case R.id.fear:
             case R.id.disgust:
             case R.id.contempt:
-                int space = item.toString().indexOf(" ");
-                myIntent.putExtra(PlayGame.PLAY, PlayGame.findItem(item.toString().substring(space+1)).toString());
+                myIntent.putExtra(PlayGame.PLAY, PlayGame.findItem(item.toString().substring(PlayGame.PLAY.length()+1)));
                 startActivity(myIntent);
                 break;
             case R.id.setkey:
@@ -68,5 +75,6 @@ public class RootActivity extends Activity {
         }
         return true;
     }
+
 
 }

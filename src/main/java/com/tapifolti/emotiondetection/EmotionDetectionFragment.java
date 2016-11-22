@@ -42,8 +42,12 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
+
 import com.tapifolti.emotiondetection.apicall.CSEmotionCallAsyncTask;
 import com.tapifolti.emotiondetection.game.PlayGame;
+import com.tapifolti.emotiondetection.game.ShotFrequency;
+
 import org.xmlpull.v1.XmlPullParserException;
 import java.io.IOException;
 import java.util.Arrays;
@@ -120,6 +124,9 @@ public class EmotionDetectionFragment extends Fragment {
     private CameraCaptureSession mCaptureSession;
     private CameraDevice mCameraDevice;
 
+    private static int mFirstPictureDelay = 3000;
+    private ShotFrequency mShotFrequency = new ShotFrequency();
+
     /**
      * {@link CameraDevice.StateCallback} is called when {@link CameraDevice} changes its state.
      */
@@ -138,7 +145,7 @@ public class EmotionDetectionFragment extends Fragment {
             Log.i(TAG, "CameraDevice onOpened()");
             mCameraDevice = cameraDevice;
             createCameraPreviewSession();
-            mUIHandler.postDelayed(takePictureTask, 4000);
+            mUIHandler.postDelayed(takePictureTask, mFirstPictureDelay);
         }
 
         @Override
@@ -203,9 +210,6 @@ public class EmotionDetectionFragment extends Fragment {
     private int mSensorOrientation;
     private Size mPreviewSize; // W > H always should be swapped as needed
     private int mRotation; // mimics: getActivity().getWindowManager().getDefaultDisplay().getRotation()
-
-    // TODO set from intent parameter
-    private static PlayGame mGame;
 
     public static EmotionDetectionFragment newInstance() {
         return new EmotionDetectionFragment();
@@ -566,11 +570,27 @@ public class EmotionDetectionFragment extends Fragment {
 
     private void takePicture() {
         // it can hit any time on the UI thread, even between onStart and onStop
+        int nextMsec = mShotFrequency.getNextDelayMSec();
         if (mBackgroundCaptureHandler != null) {
-            mUIHandler.postDelayed(takePictureTask, 4000); // TODO: take picture ramdomly in a few sec
+            if (nextMsec > 0) {
+                mUIHandler.postDelayed(takePictureTask, nextMsec);
+            }
             mBackgroundCaptureHandler.post(captureStillPictureTask);
         }
+        if (mShotFrequency.isFinished()) {
+            int end = Math.abs(nextMsec) + mFirstPictureDelay;
+            mFinishMessage = "Game is over, you succeeded!\nCongratulation!";
+            mUIHandler.postDelayed(finishTask, end);
+        }
     }
+
+    String mFinishMessage;
+    Runnable finishTask = new Runnable() {
+        @Override
+        public void run() {
+            showToast(mFinishMessage);
+            getActivity().finish();
+        }};
 
     Runnable captureStillPictureTask = new Runnable() {
         @Override
@@ -736,14 +756,26 @@ public class EmotionDetectionFragment extends Fragment {
 
     int mLastRotation = -1;
 
-    PlayGame mPlayGame = PlayGame.PLAY_MIRROR;
+    private void showToast(final String text) {
+        final Activity activity = getActivity();
+        if (activity != null) {
+            activity.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(activity, text, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+    }
+    PlayGame mPlayGame = PlayGame.MIRROR;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Intent intent = getActivity().getIntent();
-        mPlayGame = PlayGame.findItem(intent.getStringExtra(PlayGame.PLAY));
+        mPlayGame = (PlayGame)(getActivity().getIntent().getSerializableExtra(PlayGame.PLAY));
         Log.i(TAG, "CameraActivity Fragement created for: " + mPlayGame.toString());
+        mShotFrequency.reset();
+        showToast(mPlayGame.getDesc() + " for " + mShotFrequency.getTotalLengthSec() + " seconds !");
 
         mOrientationListener = new OrientationEventListener(getActivity().getBaseContext(),
                 SensorManager.SENSOR_DELAY_NORMAL) {
