@@ -22,12 +22,12 @@ public class ShotFrequency {
     public int getNextDelayMSec() {
         // TODO
         // return -1 if no more item available
-        return -1;
+        return 3000;
     }
 
     public int getTotalLengthSec() {
         // TODO
-        return -1;
+        return 90;
     }
 
     public boolean isFinished() {
