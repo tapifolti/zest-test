@@ -4,7 +4,7 @@ package com.tapifolti.emotiondetection.game;
 import java.io.Serializable;
 
 public enum PlayGame implements Serializable {
-    MIRROR(Emotions.MIRROR, "Mirrors you emotions"),
+    MIRROR(Emotions.MIRROR, "Mirrors your emotions"),
     PLAY_HAPPINESS(Emotions.HAPPINESS, "Be Happy"),
     PLAY_NEUTRAL(Emotions.NEUTRAL, "Stay Neutral"),
     PLAY_ANGER(Emotions.ANGER, "Show Anger"),
@@ -47,6 +47,13 @@ public enum PlayGame implements Serializable {
             ret[i++] = game.mText;
         }
         return ret;
+    }
+
+    public static boolean isOk(String result, PlayGame game) {
+        if (game.mText.equals(Emotions.MIRROR)) {
+            return true;
+        }
+        return game.mText.equals(result);
     }
 
 }

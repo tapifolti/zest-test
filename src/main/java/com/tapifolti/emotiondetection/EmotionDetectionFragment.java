@@ -195,7 +195,7 @@ public class EmotionDetectionFragment extends Fragment {
             = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
-            new CSEmotionCallAsyncTask(mTextView, mConnMgr, false, mKeyCSEmotion).execute(reader.acquireNextImage());
+            new CSEmotionCallAsyncTask(mTextView, mPlayGame, mShotFrequency, mConnMgr, false, mKeyCSEmotion).execute(reader.acquireNextImage());
         }
     };
 
@@ -570,17 +570,15 @@ public class EmotionDetectionFragment extends Fragment {
 
     private void takePicture() {
         // it can hit any time on the UI thread, even between onStart and onStop
-        int nextMsec = mShotFrequency.getNextDelayMSec();
-        if (mBackgroundCaptureHandler != null) {
-            if (nextMsec > 0) {
+        if (mShotFrequency.isFinished()) {
+            mFinishMessage = "Game is over, you succeeded!\nCongratulation!";
+            mUIHandler.postDelayed(finishTask, 100);
+        } else if (mBackgroundCaptureHandler != null) {
+            int nextMsec = mShotFrequency.getNextDelayMSec();
+            if (nextMsec > 0) { // for next call
                 mUIHandler.postDelayed(takePictureTask, nextMsec);
             }
-            mBackgroundCaptureHandler.post(captureStillPictureTask);
-        }
-        if (mShotFrequency.isFinished()) {
-            int end = Math.abs(nextMsec) + mFirstPictureDelay;
-            mFinishMessage = "Game is over, you succeeded!\nCongratulation!";
-            mUIHandler.postDelayed(finishTask, end);
+            mBackgroundCaptureHandler.post(captureStillPictureTask); // for taking picture
         }
     }
 
@@ -773,9 +771,8 @@ public class EmotionDetectionFragment extends Fragment {
         super.onCreate(savedInstanceState);
 
         mPlayGame = (PlayGame)(getActivity().getIntent().getSerializableExtra(PlayGame.PLAY));
-        Log.i(TAG, "CameraActivity Fragement created for: " + mPlayGame.toString());
-        mShotFrequency.reset();
-        showToast(mPlayGame.getDesc() + " for " + mShotFrequency.getTotalLengthSec() + " seconds !");
+        Log.i(TAG, "CameraActivity Fragment created for: " + mPlayGame.toString());
+        showToast(mPlayGame.getDesc() + " for " + mShotFrequency.getTotalLengthSec() + " seconds continuously!");
 
         mOrientationListener = new OrientationEventListener(getActivity().getBaseContext(),
                 SensorManager.SENSOR_DELAY_NORMAL) {

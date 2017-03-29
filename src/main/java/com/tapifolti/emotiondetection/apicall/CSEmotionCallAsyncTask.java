@@ -8,6 +8,8 @@ import android.util.Log;
 import android.widget.TextView;
 
 import com.tapifolti.emotiondetection.game.Emotions;
+import com.tapifolti.emotiondetection.game.PlayGame;
+import com.tapifolti.emotiondetection.game.ShotFrequency;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -41,12 +43,16 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
     private ConnectivityManager mConnMgr;
     private boolean mWifiOnly;
     private String mKeyCSEmotion;
+    private PlayGame mGame;
+    private ShotFrequency mFreq;
 
-    public CSEmotionCallAsyncTask(TextView textView, ConnectivityManager connMgr, boolean wifiOnly, String keyCSEmotion) {
+    public CSEmotionCallAsyncTask(TextView textView, PlayGame game, ShotFrequency freq, ConnectivityManager connMgr, boolean wifiOnly, String keyCSEmotion) {
         mTextView = textView;
         mConnMgr = connMgr;
         mWifiOnly = wifiOnly;
         mKeyCSEmotion = keyCSEmotion;
+        mGame = game;
+        mFreq = freq;
     }
 
     @Override
@@ -124,6 +130,9 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
     @Override
     protected void onPostExecute(String result) {
         if (result != null && !result.isEmpty()) {
+            if (!PlayGame.isOk(result, mGame)) {
+                mFreq.reset();
+            }
             mTextView.setText(result.toUpperCase()); // insertNewLine(result));
         }
     }
