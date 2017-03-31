@@ -35,9 +35,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
     public static final String TAG = "Emotion_CSApi";
 
-    private static final String mEmotionURL = "https://api.projectoxford.ai/emotion/v1.0/recognize";
+    private static final String mEmotionURL = "https://api.projectoxford.ai/emotion/v1.0/recognize"; // TODO config
     private static AtomicInteger mSerial = new AtomicInteger(1);
     private static boolean doCall = true; // TODO remove it
+    private static boolean writeJpeg = true; // TODO remove it
 
     private TextView mTextView;
     private ConnectivityManager mConnMgr;
@@ -55,6 +56,12 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
         mFreq = freq;
     }
 
+    private static final String NO_PICTURE_ERROR = "NO PICTURE";
+    private static final String NETWORK_ERROR = "NETWORK ERROR";
+    private static final String API_ERROR = "API ERROR";
+    private static final String PROTOCOL_ERROR = "PROTOCOL ERROR";
+    private static final String PARSE_ERROR = "PARSE ERROR";
+    private static final String NOT_FACE_ERROR = "NO FACE";
     @Override
     protected String doInBackground(Image... params) {
         Log.i(TAG, "doInBackground called");
@@ -63,12 +70,12 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
             for (Image p : params) {
                 p.close();
             }
-            return "NO PICTURE";
+            return NO_PICTURE_ERROR;
         }
         String retStr = "";
         if (!isConnected()) {
             params[0].close();
-            retStr = "NETWORK ERROR";
+            retStr = NETWORK_ERROR;
             return retStr;
         }
         HttpURLConnection connection = null;
@@ -89,15 +96,12 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
                 }
                 long beforeConnectTime = System.currentTimeMillis();
                 connection.connect();
-
                 int httpCode = connection.getResponseCode();
-                String httpMsg = connection.getResponseMessage();
-
                 long afterConnectTime = System.currentTimeMillis();
+                String httpMsg = connection.getResponseMessage();
                 Log.d(TAG, "HTTP Response: (" + httpCode + ") " + httpMsg + " [Took for: " + (afterConnectTime-beforeConnectTime) + "msec]");
-
                 if (httpCode != HttpURLConnection.HTTP_OK) {
-                    retStr = "API ERROR";
+                    retStr = API_ERROR;
                     return retStr;
                 }
 
@@ -108,12 +112,11 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
 
             Log.i(TAG, "JSon response: " + respStr);
             retStr = parseJson(respStr);
-
             return retStr;
         } catch (IOException e) {
             Log.e(TAG, "Exception while calling emotion API");
             e.printStackTrace();
-            retStr = "ERROR";
+            retStr = PROTOCOL_ERROR;
         } finally {
             if (params[0] != null) {
                 params[0].close();
@@ -121,20 +124,22 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
             if (connection != null) {
                 connection.disconnect();
             }
-            writeJpeg(requestJPEG, retStr);
+            if (writeJpeg) {
+                writeJpeg(requestJPEG, retStr);
+            }
         }
-
         return retStr;
     }
 
     @Override
     protected void onPostExecute(String result) {
-        if (result != null && !result.isEmpty()) {
-            if (!PlayGame.isOk(result, mGame)) {
-                mFreq.reset();
-            }
-            mTextView.setText(result.toUpperCase()); // insertNewLine(result));
+        if (result == null) {
+            result = "";
         }
+        if (!PlayGame.isOk(result, mGame)) {
+            mFreq.reset();
+        }
+        mTextView.setText(result.toUpperCase() + " " + String.format("%02d", mFreq.getPrevLengthSec())+"/"+mFreq.getTotalLengthSec()+"s");
     }
 
     private static String readResponse(HttpURLConnection connection) {
@@ -240,11 +245,11 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
         //        }
         //        }
         //        ]
-        String retStr = "";
+        String retStr = PARSE_ERROR;
         try {
             JSONArray itemsArray = new JSONArray(respStr);
             if (itemsArray.length() != 1) {
-                return "NOT ONE FACE";
+                return NOT_FACE_ERROR;
             }
             TreeMap<Double, String> maxMap = new TreeMap<>();
 
@@ -287,20 +292,8 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
         }
     }
 
-
-//    private String insertNewLine(String in) {
-//        if (in == null || in.isEmpty())
-//            return "";
-//        if (mTextView.getWidth() > mTextView.getHeight()) {
-//            return in;
-//        }
-//        String replaced = in.replaceAll("(.{1})", "$1\n");
-//        return replaced.substring(0, replaced.length()-1);
-//    }
-
     private static String readKeyCSEmotion() {
         // TODO: reads in the CS key from local file resource which is ecluded from source control
-
         return "";
     }
 }

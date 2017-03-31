@@ -64,7 +64,7 @@ public class RootActivity extends Activity {
                 // TODO how to register to CS
                 break;
             case R.id.pref:
-                // TODO Preferences as it should be implemented: wifi, timer speed
+                // TODO Preferences as it should be implemented: wifi, timer speed, length
                 break;
             case R.id.help:
                 // TODO Help

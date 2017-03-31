@@ -188,8 +188,7 @@ public class EmotionDetectionFragment extends Fragment {
     private ConnectivityManager mConnMgr;
 
     /**
-     * This a callback object for the {@link ImageReader}. "onImageAvailable" will be called when a
-     * still image is ready to be saved.
+     * callback for {@link ImageReader}. "onImageAvailable" called when a image is ready to be saved
      */
     private final ImageReader.OnImageAvailableListener mOnImageAvailableListener
             = new ImageReader.OnImageAvailableListener() {
@@ -199,15 +198,9 @@ public class EmotionDetectionFragment extends Fragment {
         }
     };
 
-    /**
-     * A {@link Semaphore} to ensure camera open/ camera close execution is separated
-     */
-    private Semaphore mCameraOpenCloseLock = new Semaphore(1);
+    private Semaphore mCameraOpenCloseLock = new Semaphore(1); // to ensure camera open/ camera close execution is separated
 
-    /**
-     * Orientation of the camera sensor
-     */
-    private int mSensorOrientation;
+    private int mSensorOrientation; // Orientation of the camera sensor
     private Size mPreviewSize; // W > H always should be swapped as needed
     private int mRotation; // mimics: getActivity().getWindowManager().getDefaultDisplay().getRotation()
 
@@ -345,10 +338,9 @@ public class EmotionDetectionFragment extends Fragment {
 
     private Size chooseOptimalPreviewSize(Size[] sizes) {
         // Danger, W.R.! Attempting to use too large a preview size could  exceed the camera
-        // bus' bandwidth limitation, resulting in gorgeous previews but the storage of
-        // garbage capture data.
+        // bus' bandwidth limitation, resulting in storage of garbage capture data.
         // mTextureView not yet available
-        // chosen the biggest one and both dim <= MAX
+        // chosen the biggest one where both dim <= MAX
         if (sizes == null || sizes.length == 0) {
             return null;
         }
@@ -472,7 +464,7 @@ public class EmotionDetectionFragment extends Fragment {
             }
         }
         if (mCameraOpenCloseLock.availablePermits() < 1) {
-            mCameraOpenCloseLock.release(); // the thread may died early
+            mCameraOpenCloseLock.release();
         }
     }
 
@@ -655,7 +647,6 @@ public class EmotionDetectionFragment extends Fragment {
     static class CompareSizesByArea implements Comparator<Size> {
         @Override
         public int compare(Size lhs, Size rhs) {
-            // We cast here to ensure the multiplications won't overflow
             return Long.signum((long) lhs.getWidth() * lhs.getHeight() -
                     (long) rhs.getWidth() * rhs.getHeight());
         }

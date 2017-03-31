@@ -1,6 +1,5 @@
 package com.tapifolti.emotiondetection.game;
 
-
 import java.io.Serializable;
 
 public enum PlayGame implements Serializable {
@@ -25,9 +24,7 @@ public enum PlayGame implements Serializable {
     }
 
     @Override
-    public String toString() {
-        return mText;
-    }
+    public String toString() {return mText; }
 
     public String getDesc() {return mDesc; }
 
