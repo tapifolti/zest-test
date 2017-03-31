@@ -563,7 +563,11 @@ public class EmotionDetectionFragment extends Fragment {
     private void takePicture() {
         // it can hit any time on the UI thread, even between onStart and onStop
         if (mShotFrequency.isFinished()) {
-            mFinishMessage = "Game is over, you succeeded!\nCongratulation!";
+            if (mPlayGame.equals(PlayGame.MIRROR)) {
+                mFinishMessage = "Game is over!\nCongratulation!";
+            } else {
+                mFinishMessage = "Game is over, you succeeded!\nCongratulation!";
+            }
             mUIHandler.postDelayed(finishTask, 100);
         } else if (mBackgroundCaptureHandler != null) {
             int nextMsec = mShotFrequency.getNextDelayMSec();
