@@ -21,6 +21,7 @@ import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.ImageReader;
@@ -50,11 +51,15 @@ import com.tapifolti.emotiondetection.game.ShotFrequency;
 
 import org.xmlpull.v1.XmlPullParserException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+
+import static android.R.attr.key;
 
 public class EmotionDetectionFragment extends Fragment {
 
@@ -240,6 +245,9 @@ public class EmotionDetectionFragment extends Fragment {
         }
     }
 
+    List<CaptureResult.Key<?>> mCaptureResultKeys = new ArrayList<>();
+    List<CaptureRequest.Key<?>> mCaptureRequestKeys = new ArrayList<>();
+
     private void setUpCameraOutput() {
         CameraManager manager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
         try {
@@ -247,6 +255,14 @@ public class EmotionDetectionFragment extends Fragment {
                 CameraCharacteristics characteristics
                         = manager.getCameraCharacteristics(cameraId);
 
+                mCaptureRequestKeys = characteristics.getAvailableCaptureRequestKeys();
+                for (CaptureRequest.Key<?> key : mCaptureRequestKeys) {
+                    Log.i(TAG, "CaptureRequest Key: " + key.getName());
+                }
+                mCaptureResultKeys = characteristics.getAvailableCaptureResultKeys();
+                for (CaptureResult.Key<?> key : mCaptureResultKeys) {
+                    Log.i(TAG, "CaptureResult Key: " + key.getName());
+                }
                 Integer hwLevel = characteristics.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL);
                 Log.i(TAG, "Hardware level: " + hwLevel);
 
@@ -255,6 +271,9 @@ public class EmotionDetectionFragment extends Fragment {
                     continue;
                 }
                 Log.i(TAG, "Lens facing: " + facing);
+
+                int[] capabilities = characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES);
+                Log.i(TAG, "REQUEST_AVAILABLE_CAPABILITIES: " + Arrays.toString(capabilities));
 
                 int maxProc = characteristics.get(CameraCharacteristics.REQUEST_MAX_NUM_OUTPUT_PROC);
                 Log.i(TAG, "REQUEST_MAX_NUM_OUTPUT_PROC: " + maxProc);
@@ -267,6 +286,15 @@ public class EmotionDetectionFragment extends Fragment {
 
                 int[] afModes = characteristics.get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES);
                 Log.i(TAG, "AutoFocus modes:" + Arrays.toString(afModes));
+
+                Integer focusCalib  = characteristics.get(CameraCharacteristics.LENS_INFO_FOCUS_DISTANCE_CALIBRATION);
+                Log.i(TAG, "LENS_INFO_FOCUS_DISTANCE_CALIBRATION:" + ((focusCalib==null)? "null": focusCalib));
+
+                Float focusDist = characteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
+                Log.i(TAG, "LENS_INFO_MINIMUM_FOCUS_DISTANCE:" + ((focusDist==null)? "null": Float.toString(focusDist)));
+
+                float[] focalLengths = characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS);
+                Log.i(TAG, "LENS_INFO_AVAILABLE_FOCAL_LENGTHS:" + Arrays.toString(focalLengths));
 
                 int[] aeModes = characteristics.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_MODES);
                 Log.i(TAG, "AutoExplosure modes:" + Arrays.toString(aeModes));
@@ -620,6 +648,22 @@ public class EmotionDetectionFragment extends Fragment {
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                                @NonNull CaptureRequest request,
                                                @NonNull TotalCaptureResult result) {
+
+                    // TODO for Peter
+                    for (CaptureResult.Key<?> key : mCaptureResultKeys) {
+                        if (key.equals(CaptureResult.CONTROL_AF_MODE)) {
+                            int afMode = result.get(CaptureResult.CONTROL_AF_MODE);
+                            Log.i(TAG, "CaptureResult.CONTROL_AF_MODE: " + afMode);
+                        }
+                        if (key.equals(CaptureResult.LENS_FOCUS_DISTANCE)) {
+                            float focusDist = result.get(CaptureResult.LENS_FOCUS_DISTANCE);
+                            Log.i(TAG, "CaptureResult.LENS_FOCUS_DISTANCE: " + focusDist);
+                        }
+                        // LENS_FOCUS_RANGE
+                        // CONTROL_AF_REGIONS
+                        // LENS_FOCAL_LENGTH - Zoom
+                        // LENS_STATE
+                    }
                     Log.i(TAG, "captureStillPicture() onCaptureCompleted()");
                 }
             };
