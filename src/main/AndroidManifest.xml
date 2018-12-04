@@ -32,7 +32,7 @@
         android:icon="@drawable/ic_owl_white_48dp" >
         <!--android:icon="@drawable/ic_launcher"-->
 
-        <activity android:name="com.tapifolti.emotiondetection.RootActivity"
+        <activity android:name="RootActivity"
             android:label="@string/app_name"
             android:theme="@style/MaterialThemeAppBar" >
             <intent-filter>

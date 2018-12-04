@@ -51,61 +51,64 @@ public class EmotionApiCallAsyncTask extends AsyncTask<Image, Void, String> {
     @Override
     protected String doInBackground(Image... params) {
         Log.i(TAG, "doInBackground called");
-        if (params == null || params.length != 1) {
-            Log.e(TAG, "no image/too many images got to call API with");
-            for (Image p : params) {
-                p.close();
-            }
-            return "NO PICTURE";
+//        if (params == null || params.length != 1) {
+//            Log.e(TAG, "no image/too many images got to call API with");
+//            for (Image p : params) {
+//                p.close();
+//            }
+//            return "NO PICTURE";
+//        }
+//        String retStr = "";
+//        if (!isConnected()) {
+//            params[0].close();
+//            retStr = "NETWORK ERROR";
+//            return retStr;
+//        }
+//        HttpURLConnection connection = null;
+//        String requestJsonStr = "";
+//        try {
+//            // call emotion API
+//            requestJsonStr = createRequestBody(params[0]);
+//            connection = (HttpURLConnection) new URL(mEmotionURL).openConnection();
+//            if (requestJsonStr != null && requestJsonStr.length() > 0) {
+//                writeRequest(connection, requestJsonStr);
+//            }
+//
+//            connection.connect();
+//
+//            int httpCode = connection.getResponseCode();
+//            String httpMsg = connection.getResponseMessage();
+//
+//            Log.d(TAG, "HTTP Response: (" + httpCode + ") " + httpMsg);
+//
+//            if (httpCode != HttpURLConnection.HTTP_OK) {
+//                retStr = "API ERROR";
+//                return retStr;
+//            }
+//
+//            String respStr = readResponse(connection);
+//            connection.disconnect();
+//            connection = null;
+//
+//            Log.i(TAG, "JSon response: " + respStr);
+//            retStr = parseJson(respStr);
+//
+//            return retStr;
+//        } catch (IOException e) {
+//            Log.e(TAG, "Exception while calling emotion API");
+//            e.printStackTrace();
+//            retStr = "ERROR";
+//        } finally {
+//            if (connection != null) {
+//                connection.disconnect();
+//            }
+//            writeJpeg(bytes, requestJsonStr.length(), retStr);
+//        }
+//
+        for (Image p : params) {
+            p.close();
         }
-        String retStr = "";
-        if (!isConnected()) {
-            params[0].close();
-            retStr = "NETWORK ERROR";
-            return retStr;
-        }
-        HttpURLConnection connection = null;
-        String requestJsonStr = "";
-        try {
-            // call emotion API
-            requestJsonStr = createRequestBody(params[0]);
-            connection = (HttpURLConnection) new URL(mEmotionURL).openConnection();
-            if (requestJsonStr != null && requestJsonStr.length() > 0) {
-                writeRequest(connection, requestJsonStr);
-            }
-
-            connection.connect();
-
-            int httpCode = connection.getResponseCode();
-            String httpMsg = connection.getResponseMessage();
-
-            Log.d(TAG, "HTTP Response: (" + httpCode + ") " + httpMsg);
-
-            if (httpCode != HttpURLConnection.HTTP_OK) {
-                retStr = "API ERROR";
-                return retStr;
-            }
-
-            String respStr = readResponse(connection);
-            connection.disconnect();
-            connection = null;
-
-            Log.i(TAG, "JSon response: " + respStr);
-            retStr = parseJson(respStr);
-
-            return retStr;
-        } catch (IOException e) {
-            Log.e(TAG, "Exception while calling emotion API");
-            e.printStackTrace();
-            retStr = "ERROR";
-        } finally {
-            if (connection != null) {
-                connection.disconnect();
-            }
-            writeJpeg(bytes, requestJsonStr.length(), retStr);
-        }
-
-        return retStr;
+       return "Happy"; // retStr;
         // return Long.toString(SystemClock.uptimeMillis());
     }
 

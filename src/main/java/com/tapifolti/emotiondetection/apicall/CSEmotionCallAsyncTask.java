@@ -65,70 +65,73 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
     @Override
     protected String doInBackground(Image... params) {
         Log.i(TAG, "doInBackground called");
-        if (params == null || params.length != 1) {
-            Log.e(TAG, "no image/too many images got to call API with");
-            for (Image p : params) {
-                p.close();
-            }
-            return NO_PICTURE_ERROR;
+//        if (params == null || params.length != 1) {
+//            Log.e(TAG, "no image/too many images got to call API with");
+//            for (Image p : params) {
+//                p.close();
+//            }
+//            return NO_PICTURE_ERROR;
+//        }
+//        String retStr = "";
+//        if (!isConnected()) {
+//            params[0].close();
+//            retStr = NETWORK_ERROR;
+//            return retStr;
+//        }
+//        HttpURLConnection connection = null;
+//        byte[] requestJPEG = null;
+//        try {
+//            // call emotion API
+//            ByteBuffer buffer = params[0].getPlanes()[0].getBuffer();
+//            requestJPEG = new byte[buffer.remaining()];
+//            buffer.get(requestJPEG);
+//            params[0].close(); // close asap
+//            params[0] = null;
+//
+//            String respStr = "[]";
+//            if (doCall) {
+//                connection = (HttpURLConnection) new URL(mEmotionURL).openConnection();
+//                if (requestJPEG.length > 0) {
+//                    writeRequest(connection, requestJPEG);
+//                }
+//                long beforeConnectTime = System.currentTimeMillis();
+//                connection.connect();
+//                int httpCode = connection.getResponseCode();
+//                long afterConnectTime = System.currentTimeMillis();
+//                String httpMsg = connection.getResponseMessage();
+//                Log.d(TAG, "HTTP Response: (" + httpCode + ") " + httpMsg + " [Took for: " + (afterConnectTime-beforeConnectTime) + "msec]");
+//                if (httpCode != HttpURLConnection.HTTP_OK) {
+//                    retStr = API_ERROR;
+//                    return retStr;
+//                }
+//
+//                respStr = readResponse(connection);
+//                connection.disconnect();
+//                connection = null;
+//            }
+//
+//            Log.i(TAG, "JSon response: " + respStr);
+//            retStr = parseJson(respStr);
+//            return retStr;
+//        } catch (IOException e) {
+//            Log.e(TAG, "Exception while calling emotion API");
+//            e.printStackTrace();
+//            retStr = PROTOCOL_ERROR;
+//        } finally {
+//            if (params[0] != null) {
+//                params[0].close();
+//            }
+//            if (connection != null) {
+//                connection.disconnect();
+//            }
+//            if (writeJpeg) {
+//                writeJpeg(requestJPEG, retStr);
+//            }
+//        }
+        for (Image p : params) {
+            p.close();
         }
-        String retStr = "";
-        if (!isConnected()) {
-            params[0].close();
-            retStr = NETWORK_ERROR;
-            return retStr;
-        }
-        HttpURLConnection connection = null;
-        byte[] requestJPEG = null;
-        try {
-            // call emotion API
-            ByteBuffer buffer = params[0].getPlanes()[0].getBuffer();
-            requestJPEG = new byte[buffer.remaining()];
-            buffer.get(requestJPEG);
-            params[0].close(); // close asap
-            params[0] = null;
-
-            String respStr = "[]";
-            if (doCall) {
-                connection = (HttpURLConnection) new URL(mEmotionURL).openConnection();
-                if (requestJPEG.length > 0) {
-                    writeRequest(connection, requestJPEG);
-                }
-                long beforeConnectTime = System.currentTimeMillis();
-                connection.connect();
-                int httpCode = connection.getResponseCode();
-                long afterConnectTime = System.currentTimeMillis();
-                String httpMsg = connection.getResponseMessage();
-                Log.d(TAG, "HTTP Response: (" + httpCode + ") " + httpMsg + " [Took for: " + (afterConnectTime-beforeConnectTime) + "msec]");
-                if (httpCode != HttpURLConnection.HTTP_OK) {
-                    retStr = API_ERROR;
-                    return retStr;
-                }
-
-                respStr = readResponse(connection);
-                connection.disconnect();
-                connection = null;
-            }
-
-            Log.i(TAG, "JSon response: " + respStr);
-            retStr = parseJson(respStr);
-            return retStr;
-        } catch (IOException e) {
-            Log.e(TAG, "Exception while calling emotion API");
-            e.printStackTrace();
-            retStr = PROTOCOL_ERROR;
-        } finally {
-            if (params[0] != null) {
-                params[0].close();
-            }
-            if (connection != null) {
-                connection.disconnect();
-            }
-            if (writeJpeg) {
-                writeJpeg(requestJPEG, retStr);
-            }
-        }
-        return retStr;
+        return "Happy"; // retStr;
     }
 
     @Override
