@@ -7,7 +7,6 @@ import android.os.AsyncTask;
 import android.util.Log;
 import android.widget.TextView;
 
-import com.tapifolti.emotiondetection.game.Emotions;
 import com.tapifolti.emotiondetection.game.PlayGame;
 import com.tapifolti.emotiondetection.game.ShotFrequency;
 
@@ -23,8 +22,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.URL;
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -258,14 +255,14 @@ public class CSEmotionCallAsyncTask extends AsyncTask<Image, Void, String> {
 
             JSONObject item = itemsArray.getJSONObject(0);
             JSONObject scores = item.getJSONObject("scores");
-            maxMap.put(scores.getDouble(Emotions.ANGER), Emotions.ANGER);
-            maxMap.put(scores.getDouble(Emotions.CONTEMPT), Emotions.CONTEMPT);
-            maxMap.put(scores.getDouble(Emotions.DISGUST), Emotions.DISGUST);
-            maxMap.put(scores.getDouble(Emotions.FEAR), Emotions.FEAR);
-            maxMap.put(scores.getDouble(Emotions.HAPPINESS), Emotions.HAPPINESS);
-            maxMap.put(scores.getDouble(Emotions.NEUTRAL), Emotions.NEUTRAL);
-            maxMap.put(scores.getDouble(Emotions.SADNESS), Emotions.SADNESS);
-            maxMap.put(scores.getDouble(Emotions.SURPRISE), Emotions.SURPRISE);
+//            maxMap.put(scores.getDouble(Actions.ANGER), Actions.ANGER);
+//            maxMap.put(scores.getDouble(Actions.CONTEMPT), Actions.CONTEMPT);
+//            maxMap.put(scores.getDouble(Actions.DISGUST), Actions.DISGUST);
+//            maxMap.put(scores.getDouble(Actions.FEAR), Actions.FEAR);
+//            maxMap.put(scores.getDouble(Actions.HAPPINESS), Actions.HAPPINESS);
+//            maxMap.put(scores.getDouble(Actions.NEUTRAL), Actions.NEUTRAL);
+//            maxMap.put(scores.getDouble(Actions.SADNESS), Actions.SADNESS);
+//            maxMap.put(scores.getDouble(Actions.SURPRISE), Actions.SURPRISE);
 
             Map.Entry<Double, String> maxEntry = maxMap.lastEntry();
             Log.i(TAG, "MAX Score: " + maxEntry.getValue() + " : " + maxEntry.getKey().toString());

@@ -27,8 +27,8 @@ dependencies {
 }
 
 List<String> dirs = [
-    'main'     // main sample code; look here for the interesting stuff.
-    ]
+        'main'     // main sample code; look here for the interesting stuff.
+]
 
 android {
     compileSdkVersion 27

@@ -8,8 +8,6 @@ import android.util.Base64;
 import android.util.Log;
 import android.widget.TextView;
 
-import com.tapifolti.emotiondetection.game.Emotions;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,7 +21,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 

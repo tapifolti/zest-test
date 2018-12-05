@@ -8,7 +8,6 @@ import android.app.DialogFragment;
 import android.app.Fragment;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.XmlResourceParser;
 import android.graphics.ImageFormat;
@@ -58,8 +57,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-
-import static android.R.attr.key;
 
 public class EmotionDetectionFragment extends Fragment {
 
@@ -199,7 +196,7 @@ public class EmotionDetectionFragment extends Fragment {
             = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
-            new CSEmotionCallAsyncTask(mTextView, mPlayGame, mShotFrequency, mConnMgr, false, mKeyCSEmotion).execute(reader.acquireNextImage());
+            new CSEmotionCallAsyncTask(mTextView, mDoAction, mShotFrequency, mConnMgr, false, mKeyCSEmotion).execute(reader.acquireNextImage());
         }
     };
 
@@ -591,7 +588,7 @@ public class EmotionDetectionFragment extends Fragment {
     private void takePicture() {
         // it can hit any time on the UI thread, even between onStart and onStop
         if (mShotFrequency.isFinished()) {
-            if (mPlayGame.equals(PlayGame.MIRROR)) {
+            if (mDoAction.equals(PlayGame.MIRROR)) {
                 mFinishMessage = "Game is over!\nCongratulation!";
             } else {
                 mFinishMessage = "Game is over, you succeeded!\nCongratulation!";
@@ -804,14 +801,14 @@ public class EmotionDetectionFragment extends Fragment {
             });
         }
     }
-    PlayGame mPlayGame = PlayGame.MIRROR;
+    PlayGame mDoAction = PlayGame.MIRROR;
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        mPlayGame = (PlayGame)(getActivity().getIntent().getSerializableExtra(PlayGame.PLAY));
-        Log.i(TAG, "CameraActivity Fragment created for: " + mPlayGame.toString());
-        showToast(mPlayGame.getDesc() + " for " + mShotFrequency.getTotalLengthSec() + " seconds continuously!");
+        mDoAction = (PlayGame)(getActivity().getIntent().getSerializableExtra(PlayGame.PLAY));
+        Log.i(TAG, "CameraActivity Fragment created for: " + mDoAction.toString());
+        showToast(mDoAction.getDesc() + " for " + mShotFrequency.getTotalLengthSec() + " seconds continuously!");
 
         mOrientationListener = new OrientationEventListener(getActivity().getBaseContext(),
                 SensorManager.SENSOR_DELAY_NORMAL) {
